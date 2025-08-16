@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système de Numérisation QR Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .qr-image {
+            max-width: 200px;
+            margin: 10px 0;
+        }
+        .documents-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .document-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .document-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Système de Numérisation QR Code</h1>
+        
+        <!-- Section de création de document -->
+        <div class="section">
+            <h2>📄 Créer un nouveau document</h2>
+            <form id="createDocumentForm">
+                <div class="form-group">
+                    <label for="category">Catégorie:</label>
+                    <select id="category" name="category" required>
+                        <option value="">Sélectionner une catégorie</option>
+                        <option value="RH">RH - Ressources Humaines</option>
+                        <option value="FACT">FACT - Facturation</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="subcategory">Sous-catégorie:</label>
+                    <select id="subcategory" name="subcategory" required>
+                        <option value="">Sélectionner une sous-catégorie</option>
+                        <option value="CONTRATS">CONTRATS - Contrats de travail</option>
+                        <option value="PAYSLIPS">PAYSLIPS - Bulletins de paie</option>
+                        <option value="2025">2025 - Factures 2025</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="filename">Nom du fichier:</label>
+                    <input type="text" id="filename" name="filename" placeholder="ex: contrat_dupont.pdf" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="filepath">Chemin du fichier:</label>
+                    <input type="text" id="filepath" name="filepath" placeholder="ex: uploads/RH/CONTRATS/2025/contrat_dupont.pdf" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="year">Année:</label>
+                    <input type="number" id="year" name="year" value="2025" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="title">Titre:</label>
+                    <input type="text" id="title" name="title" placeholder="ex: Contrat de travail Dupont">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" rows="3" placeholder="ex: Contrat CDI pour M. Dupont"></textarea>
+                </div>
+                
+                <button type="submit">Créer le document</button>
+            </form>
+            
+            <div id="createResult"></div>
+        </div>
+        
+        <!-- Section de résolution QR -->
+        <div class="section">
+            <h2>🔍 Résoudre un QR Code</h2>
+            <div class="form-group">
+                <label for="qrIdentifier">Identifiant QR Code:</label>
+                <input type="text" id="qrIdentifier" placeholder="ex: RH-CONTRATS-2025-0001">
+                <button onclick="resolveQR()">Résoudre</button>
+            </div>
+            
+            <div id="resolveResult"></div>
+        </div>
+        
+        <!-- Section de liste des documents -->
+        <div class="section">
+            <h2>📋 Liste des documents</h2>
+            <button onclick="loadDocuments()">Actualiser la liste</button>
+            <div id="documentsList" class="documents-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // Créer un document
+        document.getElementById('createDocumentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                category_name: formData.get('category'),
+                subcategory_name: formData.get('subcategory'),
+                filename: formData.get('filename'),
+                file_path: formData.get('filepath'),
+                year: parseInt(formData.get('year')),
+                title: formData.get('title'),
+                description: formData.get('description')
+            };
+            
+            try {
+                const response = await fetch('/api/documents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('createResult');
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Document créé avec succès!</h3>
+                        <p><strong>Code document:</strong> ${result.document_code}</p>
+                        <p><strong>QR Identifier:</strong> ${result.qr_identifier}</p>
+                        <p><strong>QR Payload:</strong> ${result.qr_payload}</p>
+                        <img src="/qr_images/${result.qr_identifier}.png" alt="QR Code" class="qr-image">
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<p>❌ Erreur: ${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('createResult').className = 'result error';
+                document.getElementById('createResult').innerHTML = `<p>❌ Erreur: ${error.message}</p>`;
+            }
+        });
+        
+        // Résoudre un QR code
+        async function resolveQR() {
+            const identifier = document.getElementById('qrIdentifier').value;
+            if (!identifier) {
+                alert('Veuillez entrer un identifiant QR code');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/qr/${identifier}`);
+                const result = await response.json();
+                const resultDiv = document.getElementById('resolveResult');
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    if (result.type === 'document') {
+                        const doc = result.data;
+                        resultDiv.innerHTML = `
+                            <h3>📄 Document trouvé</h3>
+                            <p><strong>Code:</strong> ${doc.document_code}</p>
+                            <p><strong>Fichier:</strong> ${doc.filename}</p>
+                            <p><strong>Catégorie:</strong> ${doc.category_name}</p>
+                            <p><strong>Sous-catégorie:</strong> ${doc.subcategory_name}</p>
+                            <p><strong>Année:</strong> ${doc.year}</p>
+                            <p><strong>Titre:</strong> ${doc.title || 'N/A'}</p>
+                            <p><strong>Description:</strong> ${doc.description || 'N/A'}</p>
+                        `;
+                    } else {
+                        const sub = result.data;
+                        resultDiv.innerHTML = `
+                            <h3>📁 Sous-catégorie trouvée</h3>
+                            <p><strong>Identifiant:</strong> ${sub.qr_identifier}</p>
+                            <p><strong>Catégorie:</strong> ${sub.category_name}</p>
+                            <p><strong>Sous-catégorie:</strong> ${sub.subcategory_name}</p>
+                            <p><strong>Description:</strong> ${sub.description || 'N/A'}</p>
+                        `;
+                    }
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<p>❌ ${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('resolveResult').className = 'result error';
+                document.getElementById('resolveResult').innerHTML = `<p>❌ Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Charger la liste des documents
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/api/documents');
+                const result = await response.json();
+                const listDiv = document.getElementById('documentsList');
+                
+                if (result.success) {
+                    if (result.documents.length === 0) {
+                        listDiv.innerHTML = '<p>Aucun document trouvé</p>';
+                    } else {
+                        listDiv.innerHTML = result.documents.map(doc => `
+                            <div class="document-item">
+                                <strong>${doc.document_code}</strong><br>
+                                ${doc.title || doc.filename} (${doc.year})<br>
+                                <small>${doc.category_name} / ${doc.subcategory_name}</small>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    listDiv.innerHTML = `<p class="error">Erreur: ${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('documentsList').innerHTML = `<p class="error">Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Charger la liste au démarrage
+        loadDocuments();
+    </script>
+</body>
+</html>
