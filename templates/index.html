@@ -90,17 +90,18 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Système de Numérisation QR Code</h1>
+        <h1> Système de Numérisation QR Code</h1>
         
         <!-- Section de création de document -->
         <div class="section">
-            <h2>📄 Créer un nouveau document</h2>
+            <h2> Créer un nouveau document</h2>
             <form id="createDocumentForm">
                 <div class="form-group">
                     <label for="category">Catégorie:</label>
                     <select id="category" name="category" required>
                         <option value="">Sélectionner une catégorie</option>
                         <option value="RH">RH - Ressources Humaines</option>
+                        <option value="CATALG">CATALG - Catalogues</option>
                         <option value="FACT">FACT - Facturation</option>
                     </select>
                 </div>
@@ -109,9 +110,11 @@
                     <label for="subcategory">Sous-catégorie:</label>
                     <select id="subcategory" name="subcategory" required>
                         <option value="">Sélectionner une sous-catégorie</option>
-                        <option value="CONTRATS">CONTRATS - Contrats de travail</option>
-                        <option value="PAYSLIPS">PAYSLIPS - Bulletins de paie</option>
-                        <option value="2025">2025 - Factures 2025</option>
+                        <option value="CONTRATS">CONTRATS</option>
+                        <option value="PAYSLIPS">PAYSLIPS</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
                     </select>
                 </div>
                 
@@ -122,7 +125,8 @@
                 
                 <div class="form-group">
                     <label for="filepath">Chemin du fichier:</label>
-                    <input type="text" id="filepath" name="filepath" placeholder="ex: uploads/RH/CONTRATS/2025/contrat_dupont.pdf" required>
+                    <input type="text" id="filepath" name="filepath" placeholder="ex: Archives/RH/CONTRATS/2025/contrat_dupont.pdf" readonly>
+                    <small style="color: #666;">Le chemin sera généré automatiquement</small>
                 </div>
                 
                 <div class="form-group">
@@ -148,7 +152,7 @@
         
         <!-- Section de résolution QR -->
         <div class="section">
-            <h2>🔍 Résoudre un QR Code</h2>
+            <h2> Résoudre un QR Code</h2>
             <div class="form-group">
                 <label for="qrIdentifier">Identifiant QR Code:</label>
                 <input type="text" id="qrIdentifier" placeholder="ex: RH-CONTRATS-2025-0001">
@@ -160,13 +164,32 @@
         
         <!-- Section de liste des documents -->
         <div class="section">
-            <h2>📋 Liste des documents</h2>
+            <h2> Liste des documents</h2>
             <button onclick="loadDocuments()">Actualiser la liste</button>
             <div id="documentsList" class="documents-list"></div>
         </div>
     </div>
 
     <script>
+        // Mettre à jour le chemin automatiquement
+        function updateFilePath() {
+            const category = document.getElementById('category').value;
+            const subcategory = document.getElementById('subcategory').value;
+            const year = document.getElementById('year').value;
+            const filename = document.getElementById('filename').value;
+            
+            if (category && subcategory && year && filename) {
+                const path = `Archives/${category}/${subcategory}/${year}/${filename}`;
+                document.getElementById('filepath').value = path;
+            }
+        }
+        
+        // Ajouter les événements pour mettre à jour le chemin
+        document.getElementById('category').addEventListener('change', updateFilePath);
+        document.getElementById('subcategory').addEventListener('change', updateFilePath);
+        document.getElementById('year').addEventListener('input', updateFilePath);
+        document.getElementById('filename').addEventListener('input', updateFilePath);
+
         // Créer un document
         document.getElementById('createDocumentForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -176,7 +199,6 @@
                 category_name: formData.get('category'),
                 subcategory_name: formData.get('subcategory'),
                 filename: formData.get('filename'),
-                file_path: formData.get('filepath'),
                 year: parseInt(formData.get('year')),
                 title: formData.get('title'),
                 description: formData.get('description')
@@ -197,7 +219,7 @@
                 if (result.success) {
                     resultDiv.className = 'result success';
                     resultDiv.innerHTML = `
-                        <h3>✅ Document créé avec succès!</h3>
+                        <h3> Document créé avec succès!</h3>
                         <p><strong>Code document:</strong> ${result.document_code}</p>
                         <p><strong>QR Identifier:</strong> ${result.qr_identifier}</p>
                         <p><strong>QR Payload:</strong> ${result.qr_payload}</p>
@@ -205,11 +227,11 @@
                     `;
                 } else {
                     resultDiv.className = 'result error';
-                    resultDiv.innerHTML = `<p>❌ Erreur: ${result.error}</p>`;
+                    resultDiv.innerHTML = `<p> Erreur: ${result.error}</p>`;
                 }
             } catch (error) {
                 document.getElementById('createResult').className = 'result error';
-                document.getElementById('createResult').innerHTML = `<p>❌ Erreur: ${error.message}</p>`;
+                document.getElementById('createResult').innerHTML = `<p> Erreur: ${error.message}</p>`;
             }
         });
         
@@ -231,7 +253,7 @@
                     if (result.type === 'document') {
                         const doc = result.data;
                         resultDiv.innerHTML = `
-                            <h3>📄 Document trouvé</h3>
+                            <h3> Document trouvé</h3>
                             <p><strong>Code:</strong> ${doc.document_code}</p>
                             <p><strong>Fichier:</strong> ${doc.filename}</p>
                             <p><strong>Catégorie:</strong> ${doc.category_name}</p>
@@ -243,7 +265,7 @@
                     } else {
                         const sub = result.data;
                         resultDiv.innerHTML = `
-                            <h3>📁 Sous-catégorie trouvée</h3>
+                            <h3> Sous-catégorie trouvée</h3>
                             <p><strong>Identifiant:</strong> ${sub.qr_identifier}</p>
                             <p><strong>Catégorie:</strong> ${sub.category_name}</p>
                             <p><strong>Sous-catégorie:</strong> ${sub.subcategory_name}</p>
@@ -252,11 +274,11 @@
                     }
                 } else {
                     resultDiv.className = 'result error';
-                    resultDiv.innerHTML = `<p>❌ ${result.error}</p>`;
+                    resultDiv.innerHTML = `<p> ${result.error}</p>`;
                 }
             } catch (error) {
                 document.getElementById('resolveResult').className = 'result error';
-                document.getElementById('resolveResult').innerHTML = `<p>❌ Erreur: ${error.message}</p>`;
+                document.getElementById('resolveResult').innerHTML = `<p> Erreur: ${error.message}</p>`;
             }
         }
         

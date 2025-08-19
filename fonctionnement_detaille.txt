@@ -1,0 +1,274 @@
+===============================================================================
+                    FONCTIONNEMENT DÉTAILLÉ DE L'APPLICATION QR ARCHIVES
+===============================================================================
+
+OBJECTIF : Numériser et organiser des documents PDF avec génération automatique 
+          de QR codes pour accès rapide depuis n'importe quel appareil.
+
+===============================================================================
+1. ARCHITECTURE GÉNÉRALE
+===============================================================================
+
+L'application utilise :
+- Flask (serveur web Python)
+- MySQL (base de données locale)
+- QR codes (images PNG générées automatiquement)
+- Structure de fichiers organisée dans Archives/
+
+Flux principal :
+PDF physique → Copie dans Archives/ → Enregistrement en base → QR code → Accès mobile
+
+===============================================================================
+2. ORGANISATION DES FICHIERS
+===============================================================================
+
+Structure automatique dans le dossier Archives/ :
+
+Archives/
+├── RH/                     (Ressources Humaines)
+│   ├── CONTRATS/
+│   │   ├── 2023/
+│   │   ├── 2024/
+│   │   └── 2025/           ← contrat_dupont.pdf
+│   └── PAYSLIPS/
+│       ├── 2023/
+│       ├── 2024/
+│       └── 2025/           ← bulletin_janvier.pdf
+├── FACT/                   (Facturation)
+│   ├── 2023/
+│   ├── 2024/
+│   └── 2025/               ← facture_client_001.pdf
+└── CATALG/                 (Catalogues)
+    ├── 2023/
+    ├── 2024/
+    └── 2025/               ← catalogue_produits.pdf
+
+RÈGLE : Chaque PDF est placé dans Archives/CATEGORIE/SOUS-CATEGORIE/ANNEE/fichier.pdf
+
+===============================================================================
+3. PROCESSUS COMPLET : DE LA COPIE AU TÉLÉCHARGEMENT
+===============================================================================
+
+ÉTAPE 1 : COPIE DU PDF PHYSIQUE
+------------------------------
+Action manuelle :
+1. Prendre le document PDF physique (ex: contrat de travail)
+2. Le scanner ou le convertir en PDF
+3. Le copier dans le bon dossier :
+   Archives/RH/CONTRATS/2025/contrat_dupont_2025.pdf
+
+ÉTAPE 2 : ENREGISTREMENT EN BASE DE DONNÉES
+-------------------------------------------
+Via l'interface web (http://localhost:5000) ou API :
+
+Données à fournir :
+- category_name: "RH"
+- subcategory_name: "CONTRATS" 
+- filename: "contrat_dupont_2025.pdf"
+- year: 2025
+- title: "Contrat de travail M. Dupont"
+- description: "Contrat CDI signé le 15/01/2025"
+
+L'application génère automatiquement :
+- Code document : RH-CONTRATS-2025-0001
+- Chemin complet : Archives/RH/CONTRATS/2025/contrat_dupont_2025.pdf
+- URL QR : http://localhost:5000/qr/RH-CONTRATS-2025-0001
+
+ÉTAPE 3 : GÉNÉRATION DU QR CODE
+-------------------------------
+Automatique après enregistrement :
+
+1. L'application crée un QR code contenant l'URL :
+   http://localhost:5000/qr/RH-CONTRATS-2025-0001
+
+2. L'image QR est sauvée dans :
+   qr_images/RH-CONTRATS-2025-0001.png
+
+3. Le QR code est imprimable et collable sur le document physique
+
+ÉTAPE 4 : UTILISATION DU QR CODE
+--------------------------------
+Sur n'importe quel appareil (smartphone, tablette) :
+
+1. Scanner le QR code avec l'appareil photo ou une app QR
+2. L'appareil ouvre automatiquement l'URL :
+   http://localhost:5000/qr/RH-CONTRATS-2025-0001
+3. L'application affiche la page du document avec :
+   - Informations (titre, description, catégorie)
+   - Bouton de téléchargement direct
+   - Métadonnées (date création, code document)
+
+ÉTAPE 5 : TÉLÉCHARGEMENT SUR L'AUTRE APPAREIL
+---------------------------------------------
+Depuis la page du document :
+
+1. Cliquer sur "Télécharger le document"
+2. L'appareil télécharge directement le PDF depuis :
+   http://localhost:5000/archives/RH/CONTRATS/2025/contrat_dupont_2025.pdf
+3. Le PDF s'ouvre dans l'application PDF de l'appareil
+4. Possibilité de sauvegarder localement ou partager
+
+===============================================================================
+4. CODES GÉNÉRÉS AUTOMATIQUEMENT
+===============================================================================
+
+Format des codes documents : CATEGORIE-SOUSCATEGORIE-ANNEE-NUMERO
+
+Exemples :
+- RH-CONTRATS-2025-0001     (Premier contrat de 2025)
+- RH-CONTRATS-2025-0002     (Deuxième contrat de 2025)
+- RH-PAYSLIPS-2025-0001     (Premier bulletin de 2025)
+- FACT-2025-0001            (Première facture de 2025)
+- CATALG-2025-0001          (Premier catalogue de 2025)
+
+La numérotation est automatique et séquentielle par sous-catégorie/année.
+
+===============================================================================
+5. BASE DE DONNÉES MYSQL
+===============================================================================
+
+Tables principales :
+
+CATEGORIES
+- id, name (RH, FACT, CATALG), description
+
+SUBCATEGORIES  
+- id, category_id, name (CONTRATS, PAYSLIPS, 2023, 2024, 2025)
+
+DOCUMENTS
+- id, subcategory_id, document_code, filename, file_path, year, title, description
+
+QRCODES
+- id, qr_identifier, qr_payload (URL), document_id, qr_image_path
+
+SEQUENCES
+- subcategory_id, year, current_sequence (pour numérotation automatique)
+
+===============================================================================
+6. API ENDPOINTS DISPONIBLES
+===============================================================================
+
+GET / 
+→ Page d'accueil de l'application
+
+GET /qr/{identifier}
+→ Résolution d'un QR code, affiche la page du document
+→ Exemple : /qr/RH-CONTRATS-2025-0001
+
+GET /download/{identifier}  
+→ Téléchargement direct du PDF
+→ Exemple : /download/RH-CONTRATS-2025-0001
+
+POST /api/documents
+→ Créer un nouveau document (JSON)
+→ Génère automatiquement le code et le QR
+
+GET /api/documents
+→ Lister tous les documents enregistrés
+
+GET /archives/{path}
+→ Servir les fichiers PDF depuis Archives/
+
+GET /qr_images/{filename}
+→ Servir les images QR générées
+
+===============================================================================
+7. EXEMPLE COMPLET D'UTILISATION
+===============================================================================
+
+SCÉNARIO : Archiver un contrat de travail
+
+1. PRÉPARATION
+   - Document physique : Contrat de M. Martin
+   - Scanner en PDF : contrat_martin_2025.pdf
+   - Copier dans : Archives/RH/CONTRATS/2025/contrat_martin_2025.pdf
+
+2. ENREGISTREMENT (via interface web)
+   - Aller sur http://localhost:5000
+   - Remplir le formulaire :
+     * Catégorie : RH
+     * Sous-catégorie : CONTRATS
+     * Fichier : contrat_martin_2025.pdf
+     * Année : 2025
+     * Titre : Contrat de travail M. Martin
+     * Description : Contrat CDI signé le 20/01/2025
+   - Cliquer "Créer"
+
+3. RÉSULTAT AUTOMATIQUE
+   - Code généré : RH-CONTRATS-2025-0002
+   - QR code créé : qr_images/RH-CONTRATS-2025-0002.png
+   - URL QR : http://localhost:5000/qr/RH-CONTRATS-2025-0002
+
+4. IMPRESSION ET COLLAGE
+   - Imprimer le QR code (qr_images/RH-CONTRATS-2025-0002.png)
+   - Coller sur le document physique
+   - Ranger le document physique
+
+5. UTILISATION MOBILE
+   - Scanner le QR avec un smartphone
+   - Accès instantané aux informations
+   - Téléchargement direct du PDF
+   - Consultation sur mobile/tablette
+
+===============================================================================
+8. AVANTAGES DU SYSTÈME
+===============================================================================
+
+POUR L'ENTREPRISE :
+- Organisation automatique des documents
+- Codes uniques pour chaque document
+- Traçabilité complète
+- Accès rapide sans chercher
+
+POUR LES UTILISATEURS :
+- Scan QR = accès immédiat au document
+- Téléchargement sur n'importe quel appareil
+- Pas besoin de connaître l'emplacement du fichier
+- Interface web simple et intuitive
+
+POUR L'IT :
+- Base de données MySQL robuste
+- Code Python simple et maintenable
+- Configuration centralisée (.env)
+- Logs détaillés pour débogage
+
+===============================================================================
+9. SÉCURITÉ ET BONNES PRATIQUES
+===============================================================================
+
+ACCÈS RÉSEAU :
+- Application accessible uniquement sur le réseau local
+- URL QR contient l'IP/domaine du serveur
+- Pas d'exposition internet par défaut
+
+FICHIERS :
+- PDFs stockés localement dans Archives/
+- QR codes en images PNG
+- Pas de stockage cloud par défaut
+
+BASE DE DONNÉES :
+- MySQL local sécurisé par mot de passe
+- Pas d'accès externe par défaut
+- Sauvegarde recommandée régulièrement
+
+===============================================================================
+10. MAINTENANCE ET ÉVOLUTION
+===============================================================================
+
+AJOUT DE NOUVELLES CATÉGORIES :
+- Modifier les données dans init_db.py
+- Relancer l'initialisation
+
+SAUVEGARDE :
+- Exporter la base MySQL : mysqldump qr_archives
+- Copier le dossier Archives/
+- Sauvegarder qr_images/
+
+MISE À L'ÉCHELLE :
+- Déployer sur serveur dédié
+- Configurer accès réseau étendu
+- Ajouter authentification si nécessaire
+
+===============================================================================
+
+L'application est maintenant opérationnelle et prête pour la production !
