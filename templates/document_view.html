@@ -111,7 +111,7 @@
 <body>
     <div class="container">
         <div class="document-header">
-            <div class="document-code">📄 {{ document.document_code }}</div>
+            <div class="document-code">{{ document.document_code }}</div>
             <div class="document-title">{{ document.title or document.filename }}</div>
             <div class="document-meta">{{ document.category_name }} / {{ document.subcategory_name }} - {{ document.year }}</div>
         </div>
@@ -146,13 +146,13 @@
         </div>
 
         <div class="file-info">
-            <h3>📁 Informations du fichier</h3>
+            <h3> Informations du fichier</h3>
             <p><strong>Emplacement:</strong> {{ document.file_path }}</p>
             <p><strong>Accessible via QR:</strong> {{ document.document_code }}</p>
         </div>
 
         <div class="pdf-preview">
-            <h3>📖 Aperçu du document</h3>
+            <h3> Aperçu du document</h3>
             <iframe src="/archives/{{ document.file_path.replace('Archives/', '') }}" 
                     class="pdf-embed" 
                     type="application/pdf">
@@ -162,14 +162,14 @@
 
         <div class="actions">
             <a href="/download/{{ document.document_code }}" class="btn btn-success">
-                ⬇️ Télécharger le PDF
+                 Télécharger le PDF
             </a>
             <a href="/archives/{{ document.file_path.replace('Archives/', '') }}" 
                target="_blank" class="btn btn-primary">
-                👁️ Ouvrir dans un nouvel onglet
+                 Ouvrir dans un nouvel onglet
             </a>
             <a href="/" class="btn btn-secondary">
-                🏠 Retour à l'accueil
+                 Retour à l'accueil
             </a>
         </div>
     </div>
@@ -185,7 +185,7 @@
                 console.log('Erreur de chargement du PDF');
                 iframe.style.display = 'none';
                 const errorMsg = document.createElement('div');
-                errorMsg.innerHTML = '<p style="color: red;">❌ Impossible de charger l\'aperçu PDF. Utilisez le bouton de téléchargement.</p>';
+                errorMsg.innerHTML = '<p style="color: red;"> Impossible de charger l\'aperçu PDF. Utilisez le bouton de téléchargement.</p>';
                 iframe.parentNode.insertBefore(errorMsg, iframe);
             };
         }

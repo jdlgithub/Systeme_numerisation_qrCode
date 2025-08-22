@@ -92,6 +92,11 @@
     <div class="container">
         <h1> Système de Numérisation QR Code</h1>
         
+        <div style="text-align: center; margin-bottom: 20px;">
+            <a href="/admin" style="background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px;"> Administration</a>
+            <button onclick="loadCategories()" style="background-color: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 4px;"> Actualiser Catégories</button>
+        </div>
+        
         <!-- Section de création de document -->
         <div class="section">
             <h2> Créer un nouveau document</h2>
@@ -100,9 +105,6 @@
                     <label for="category">Catégorie:</label>
                     <select id="category" name="category" required>
                         <option value="">Sélectionner une catégorie</option>
-                        <option value="RH">RH - Ressources Humaines</option>
-                        <option value="CATALG">CATALG - Catalogues</option>
-                        <option value="FACT">FACT - Facturation</option>
                     </select>
                 </div>
                 
@@ -110,11 +112,6 @@
                     <label for="subcategory">Sous-catégorie:</label>
                     <select id="subcategory" name="subcategory" required>
                         <option value="">Sélectionner une sous-catégorie</option>
-                        <option value="CONTRATS">CONTRATS</option>
-                        <option value="PAYSLIPS">PAYSLIPS</option>
-                        <option value="2023">2023</option>
-                        <option value="2024">2024</option>
-                        <option value="2025">2025</option>
                     </select>
                 </div>
                 
@@ -184,8 +181,74 @@
             }
         }
         
+        // Charger les catégories depuis l'API
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                const result = await response.json();
+                const categorySelect = document.getElementById('category');
+                
+                if (result.success) {
+                    categorySelect.innerHTML = '<option value="">Sélectionner une catégorie</option>';
+                    result.categories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat.name;
+                        option.textContent = `${cat.name} - ${cat.description}`;
+                        categorySelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement catégories:', error);
+            }
+        }
+
+        // Charger les sous-catégories d'une catégorie
+        async function loadSubcategories(categoryId) {
+            try {
+                const response = await fetch(`/api/subcategories/${categoryId}`);
+                const result = await response.json();
+                const subcategorySelect = document.getElementById('subcategory');
+                
+                if (result.success) {
+                    subcategorySelect.innerHTML = '<option value="">Sélectionner une sous-catégorie</option>';
+                    result.subcategories.forEach(subcat => {
+                        const option = document.createElement('option');
+                        option.value = subcat.name;
+                        option.textContent = `${subcat.name} - ${subcat.description}`;
+                        subcategorySelect.appendChild(option);
+                    });
+                } else {
+                    subcategorySelect.innerHTML = '<option value="">Aucune sous-catégorie</option>';
+                }
+            } catch (error) {
+                console.error('Erreur chargement sous-catégories:', error);
+            }
+        }
+
+        // Gérer le changement de catégorie
+        document.getElementById('category').addEventListener('change', async function() {
+            const categoryName = this.value;
+            if (categoryName) {
+                // Trouver l'ID de la catégorie
+                try {
+                    const response = await fetch('/api/categories');
+                    const result = await response.json();
+                    if (result.success) {
+                        const category = result.categories.find(cat => cat.name === categoryName);
+                        if (category) {
+                            await loadSubcategories(category.id);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                }
+            } else {
+                document.getElementById('subcategory').innerHTML = '<option value="">Sélectionner une sous-catégorie</option>';
+            }
+            updateFilePath();
+        });
+
         // Ajouter les événements pour mettre à jour le chemin
-        document.getElementById('category').addEventListener('change', updateFilePath);
         document.getElementById('subcategory').addEventListener('change', updateFilePath);
         document.getElementById('year').addEventListener('input', updateFilePath);
         document.getElementById('filename').addEventListener('input', updateFilePath);
@@ -309,7 +372,8 @@
             }
         }
         
-        // Charger la liste au démarrage
+        // Charger les données au démarrage
+        loadCategories();
         loadDocuments();
     </script>
 </body>

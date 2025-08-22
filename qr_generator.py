@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Générateur de QR codes pour l'application QR Archives
-Crée des images PNG des QR codes pour les documents
-"""
-
 import qrcode
 import os
 from dotenv import load_dotenv

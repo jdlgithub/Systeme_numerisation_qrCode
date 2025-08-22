@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Application Flask pour la numérisation de documents avec QR codes
-Utilise MySQL local et stockage dans Archives/
-"""
-
 from flask import Flask, jsonify, request, render_template, send_from_directory
 from database import db
 from qr_generator import qr_generator
@@ -38,12 +32,12 @@ DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 os.makedirs(ARCHIVES_FOLDER, exist_ok=True)
 os.makedirs(QR_IMAGES_FOLDER, exist_ok=True)
 
-# ==================== FONCTIONS UTILITAIRES ====================
+#  Fontions utilitaires pour la création de documents 
 
 def create_document_simple(category_name, subcategory_name, filename, year, title="", description=""):
     """
     Créer un document avec génération automatique du code et du chemin
-    Remplace la procédure stockée par de la logique Python simple
+
     """
     try:
         # 1. Récupérer ou créer la catégorie
@@ -129,7 +123,7 @@ def get_next_sequence(subcategory_id, year):
                         (subcategory_id, year))
         return 1
 
-# ==================== ROUTES WEB ====================
+# Routes web 
 
 @app.route('/')
 def index():
@@ -139,77 +133,32 @@ def index():
 @app.route('/qr/<identifier>')
 def resolve_qr(identifier):
     """
-    Résoudre un QR code et afficher la page du document avec option de téléchargement
+    Résoudre un QR code hiérarchique (catégorie, sous-catégorie ou document)
     
     Args:
-        identifier (str): Identifiant du QR code (code document ou sous-catégorie)
+        identifier (str): Identifiant du QR code
     
     Returns:
-        HTML: Page de visualisation du document ou JSON pour API
+        HTML: Page de visualisation ou JSON pour API
     """
     try:
-        # Chercher d'abord dans les documents
-        query = """
-        SELECT 
-            d.document_code,
-            d.filename,
-            d.file_path,
-            d.year,
-            d.title,
-            d.description,
-            c.name as category_name,
-            sc.name as subcategory_name,
-            q.qr_payload,
-            'DOCUMENT' as type
-        FROM documents d
-        JOIN subcategories sc ON d.subcategory_id = sc.id
-        JOIN categories c ON sc.category_id = c.id
-        JOIN qrcodes q ON d.id = q.document_id
-        WHERE q.qr_identifier = %s
-        """
+        # 1. Chercher dans les documents
+        if not identifier.startswith('CAT-') and not identifier.startswith('SUBCAT-'):
+            document_result = _resolve_document_qr(identifier)
+            if document_result:
+                return document_result
         
-        result = db.execute_query(query, (identifier,))
+        # 2. Chercher dans les sous-catégories
+        if identifier.startswith('SUBCAT-'):
+            subcategory_result = _resolve_subcategory_qr(identifier)
+            if subcategory_result:
+                return subcategory_result
         
-        if result:
-            document = result[0]
-            # Vérifier si c'est une requête API ou une navigation web
-            if request.headers.get('Accept', '').startswith('application/json'):
-                return jsonify({
-                    'success': True,
-                    'type': 'document',
-                    'data': document
-                })
-            else:
-                # Afficher la page de visualisation du document
-                return render_template('document_view.html', document=document)
-        
-        # Si pas trouvé, chercher dans les sous-catégories
-        query = """
-        SELECT 
-            q.qr_identifier,
-            c.name as category_name,
-            sc.name as subcategory_name,
-            sc.description,
-            q.qr_payload,
-            'SUBCATEGORY' as type
-        FROM qrcodes q
-        JOIN subcategories sc ON q.subcategory_id = sc.id
-        JOIN categories c ON sc.category_id = c.id
-        WHERE q.qr_identifier = %s AND q.qr_type = 'SUBCATEGORY'
-        """
-        
-        result = db.execute_query(query, (identifier,))
-        
-        if result:
-            subcategory = result[0]
-            if request.headers.get('Accept', '').startswith('application/json'):
-                return jsonify({
-                    'success': True,
-                    'type': 'subcategory',
-                    'data': subcategory
-                })
-            else:
-                return render_template('subcategory_view.html', subcategory=subcategory)
+        # 3. Chercher dans les catégories
+        if identifier.startswith('CAT-'):
+            category_result = _resolve_category_qr(identifier)
+            if category_result:
+                return category_result
         
         return jsonify({
             'success': False,
@@ -222,6 +171,151 @@ def resolve_qr(identifier):
             'success': False,
             'error': 'Erreur interne du serveur'
         }), 500
+
+def _resolve_document_qr(identifier):
+    """Résoudre un QR code de document"""
+    query = """
+    SELECT 
+        d.document_code,
+        d.filename,
+        d.file_path,
+        d.year,
+        d.title,
+        d.description,
+        c.name as category_name,
+        sc.name as subcategory_name,
+        q.qr_payload,
+        'DOCUMENT' as type
+    FROM documents d
+    JOIN subcategories sc ON d.subcategory_id = sc.id
+    JOIN categories c ON sc.category_id = c.id
+    JOIN qrcodes q ON d.id = q.document_id
+    WHERE q.qr_identifier = %s AND q.qr_type = 'DOCUMENT'
+    """
+    
+    result = db.execute_query(query, (identifier,))
+    
+    if result:
+        document = result[0]
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return jsonify({
+                'success': True,
+                'type': 'document',
+                'data': document
+            })
+        else:
+            return render_template('document_view.html', document=document)
+    
+    return None
+
+def _resolve_subcategory_qr(identifier):
+    """Résoudre un QR code de sous-catégorie"""
+    query = """
+    SELECT 
+        q.qr_identifier,
+        c.name as category_name,
+        sc.name as subcategory_name,
+        sc.description,
+        q.folder_path,
+        q.qr_payload,
+        'SUBCATEGORY' as type,
+        COUNT(d.id) as document_count
+    FROM qrcodes q
+    JOIN subcategories sc ON q.subcategory_id = sc.id
+    JOIN categories c ON sc.category_id = c.id
+    LEFT JOIN documents d ON sc.id = d.subcategory_id
+    WHERE q.qr_identifier = %s AND q.qr_type = 'SUBCATEGORY'
+    GROUP BY q.id, c.name, sc.name, sc.description, q.folder_path, q.qr_payload
+    """
+    
+    result = db.execute_query(query, (identifier,))
+    
+    if result:
+        subcategory = result[0]
+        
+        # Récupérer la liste des documents dans cette sous-catégorie
+        docs_query = """
+        SELECT d.document_code, d.filename, d.title, q.qr_identifier
+        FROM documents d
+        JOIN qrcodes q ON d.id = q.document_id
+        JOIN subcategories sc ON d.subcategory_id = sc.id
+        WHERE sc.name = %s AND sc.category_id = (
+            SELECT category_id FROM subcategories WHERE id = (
+                SELECT subcategory_id FROM qrcodes WHERE qr_identifier = %s
+            )
+        )
+        ORDER BY d.created_at DESC
+        """
+        
+        documents = db.execute_query(docs_query, (subcategory['subcategory_name'], identifier))
+        subcategory['documents'] = documents
+        
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return jsonify({
+                'success': True,
+                'type': 'subcategory',
+                'data': subcategory
+            })
+        else:
+            return render_template('subcategory_view.html', subcategory=subcategory)
+    
+    return None
+
+def _resolve_category_qr(identifier):
+    """Résoudre un QR code de catégorie"""
+    query = """
+    SELECT 
+        q.qr_identifier,
+        c.name as category_name,
+        c.description,
+        q.folder_path,
+        q.qr_payload,
+        'CATEGORY' as type,
+        COUNT(DISTINCT sc.id) as subcategory_count,
+        COUNT(DISTINCT d.id) as document_count
+    FROM qrcodes q
+    JOIN categories c ON q.category_id = c.id
+    LEFT JOIN subcategories sc ON c.id = sc.category_id
+    LEFT JOIN documents d ON sc.id = d.subcategory_id
+    WHERE q.qr_identifier = %s AND q.qr_type = 'CATEGORY'
+    GROUP BY q.id, c.name, c.description, q.folder_path, q.qr_payload
+    """
+    
+    result = db.execute_query(query, (identifier,))
+    
+    if result:
+        category = result[0]
+        
+        # Récupérer les sous-catégories
+        subcat_query = """
+        SELECT 
+            sc.name as subcategory_name,
+            sc.description,
+            q.qr_identifier,
+            COUNT(d.id) as document_count
+        FROM subcategories sc
+        LEFT JOIN qrcodes q ON sc.id = q.subcategory_id AND q.qr_type = 'SUBCATEGORY'
+        LEFT JOIN documents d ON sc.id = d.subcategory_id
+        WHERE sc.category_id = (
+            SELECT category_id FROM qrcodes WHERE qr_identifier = %s
+        )
+        GROUP BY sc.id, sc.name, sc.description, q.qr_identifier
+        ORDER BY sc.name
+        """
+        
+        subcategories = db.execute_query(subcat_query, (identifier,))
+        category['subcategories'] = subcategories
+        
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return jsonify({
+                'success': True,
+                'type': 'category',
+                'data': category
+            })
+        else:
+            return render_template('category_view.html', category=category)
+    
+    return None
 
 @app.route('/download/<identifier>')
 def download_document(identifier):
@@ -274,6 +368,255 @@ def download_document(identifier):
             'error': 'Erreur interne du serveur'
         }), 500
 
+@app.route('/api/scan-archives', methods=['POST'])
+def scan_archives():
+    """
+    API: Scanner la structure Archives/ et créer tous les QR codes
+    """
+    try:
+        from archive_scanner import ArchiveScanner
+        
+        scanner = ArchiveScanner()
+        success = scanner.scan_and_register_all()
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Structure Archives/ scannée et QR codes générés avec succès'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Erreur lors du scan de la structure'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Erreur lors du scan des archives: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/categories', methods=['GET'])
+def list_categories():
+    """API: Lister toutes les catégories"""
+    try:
+        query = """
+        SELECT 
+            c.id,
+            c.name,
+            c.description,
+            COUNT(DISTINCT sc.id) as subcategory_count,
+            COUNT(DISTINCT d.id) as document_count,
+            q.qr_identifier
+        FROM categories c
+        LEFT JOIN subcategories sc ON c.id = sc.category_id
+        LEFT JOIN documents d ON sc.id = d.subcategory_id
+        LEFT JOIN qrcodes q ON c.id = q.category_id AND q.qr_type = 'CATEGORY'
+        GROUP BY c.id, c.name, c.description, q.qr_identifier
+        ORDER BY c.name
+        """
+        
+        categories = db.execute_query(query)
+        
+        return jsonify({
+            'success': True,
+            'categories': categories
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des catégories: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/categories', methods=['POST'])
+def create_category():
+    """API: Créer une nouvelle catégorie avec QR code"""
+    try:
+        data = request.get_json()
+        
+        # Validation
+        if 'name' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Le nom de la catégorie est requis'
+            }), 400
+        
+        name = data['name'].upper().strip()
+        description = data.get('description', f'Catégorie {name}')
+        
+        # Vérifier si la catégorie existe déjà
+        existing = db.execute_query("SELECT id FROM categories WHERE name = %s", (name,))
+        if existing:
+            return jsonify({
+                'success': False,
+                'error': 'Cette catégorie existe déjà'
+            }), 400
+        
+        # Créer la catégorie
+        db.execute_query("INSERT INTO categories (name, description) VALUES (%s, %s)", (name, description))
+        category_id = db.execute_query("SELECT LAST_INSERT_ID() as id")[0]['id']
+        
+        # Créer le QR code
+        qr_identifier = f"CAT-{name}"
+        qr_payload = f"{BASE_URL}/qr/{qr_identifier}"
+        qr_image_path = f"qr_images/{qr_identifier}.png"
+        folder_path = f"Archives/{name}"
+        
+        qr_query = """
+        INSERT INTO qrcodes (qr_type, qr_identifier, qr_payload, category_id, folder_path, qr_image_path)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        db.execute_query(qr_query, ('CATEGORY', qr_identifier, qr_payload, category_id, folder_path, qr_image_path))
+        
+        # Générer l'image QR
+        qr_generator.generate_qr_code(qr_identifier, qr_payload)
+        
+        # Créer le dossier physique
+        os.makedirs(os.path.join(ARCHIVES_FOLDER, name), exist_ok=True)
+        
+        return jsonify({
+            'success': True,
+            'category': {
+                'id': category_id,
+                'name': name,
+                'description': description,
+                'qr_identifier': qr_identifier,
+                'folder_path': folder_path
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la création de la catégorie: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/subcategories', methods=['POST'])
+def create_subcategory():
+    """API: Créer une nouvelle sous-catégorie avec QR code"""
+    try:
+        data = request.get_json()
+        
+        # Validation
+        required_fields = ['category_id', 'name']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': f'Champ requis manquant: {field}'
+                }), 400
+        
+        category_id = data['category_id']
+        name = data['name'].upper().strip()
+        description = data.get('description', f'Sous-catégorie {name}')
+        
+        # Vérifier que la catégorie existe
+        category = db.execute_query("SELECT name FROM categories WHERE id = %s", (category_id,))
+        if not category:
+            return jsonify({
+                'success': False,
+                'error': 'Catégorie non trouvée'
+            }), 404
+        
+        category_name = category[0]['name']
+        
+        # Vérifier si la sous-catégorie existe déjà
+        existing = db.execute_query(
+            "SELECT id FROM subcategories WHERE category_id = %s AND name = %s", 
+            (category_id, name)
+        )
+        if existing:
+            return jsonify({
+                'success': False,
+                'error': 'Cette sous-catégorie existe déjà dans cette catégorie'
+            }), 400
+        
+        # Créer la sous-catégorie
+        db.execute_query(
+            "INSERT INTO subcategories (category_id, name, description) VALUES (%s, %s, %s)", 
+            (category_id, name, description)
+        )
+        subcategory_id = db.execute_query("SELECT LAST_INSERT_ID() as id")[0]['id']
+        
+        # Créer le QR code
+        qr_identifier = f"SUBCAT-{category_name}-{name}"
+        qr_payload = f"{BASE_URL}/qr/{qr_identifier}"
+        qr_image_path = f"qr_images/{qr_identifier}.png"
+        folder_path = f"Archives/{category_name}/{name}"
+        
+        qr_query = """
+        INSERT INTO qrcodes (qr_type, qr_identifier, qr_payload, subcategory_id, folder_path, qr_image_path)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        db.execute_query(qr_query, ('SUBCATEGORY', qr_identifier, qr_payload, subcategory_id, folder_path, qr_image_path))
+        
+        # Générer l'image QR
+        qr_generator.generate_qr_code(qr_identifier, qr_payload)
+        
+        # Créer le dossier physique
+        os.makedirs(os.path.join(ARCHIVES_FOLDER, category_name, name), exist_ok=True)
+        
+        return jsonify({
+            'success': True,
+            'subcategory': {
+                'id': subcategory_id,
+                'name': name,
+                'description': description,
+                'category_name': category_name,
+                'qr_identifier': qr_identifier,
+                'folder_path': folder_path
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la création de la sous-catégorie: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/subcategories/<int:category_id>')
+def list_subcategories(category_id):
+    """API: Lister les sous-catégories d'une catégorie"""
+    try:
+        query = """
+        SELECT 
+            sc.id,
+            sc.name,
+            sc.description,
+            COUNT(d.id) as document_count,
+            q.qr_identifier
+        FROM subcategories sc
+        LEFT JOIN documents d ON sc.id = d.subcategory_id
+        LEFT JOIN qrcodes q ON sc.id = q.subcategory_id AND q.qr_type = 'SUBCATEGORY'
+        WHERE sc.category_id = %s
+        GROUP BY sc.id, sc.name, sc.description, q.qr_identifier
+        ORDER BY sc.name
+        """
+        
+        subcategories = db.execute_query(query, (category_id,))
+        
+        return jsonify({
+            'success': True,
+            'subcategories': subcategories
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des sous-catégories: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/admin')
+def admin_panel():
+    """Page d'administration pour gérer les catégories et sous-catégories"""
+    return render_template('admin.html')
+
 @app.route('/api/documents', methods=['POST'])
 def create_document():
     """
@@ -303,7 +646,7 @@ def create_document():
                     'error': f'Champ requis manquant: {field}'
                 }), 400
         
-        # Créer le document avec logique simplifiée
+        # Créer le document 
         result = create_document_simple(
             data['category_name'],
             data['subcategory_name'], 
@@ -339,7 +682,7 @@ def create_document():
             'error': 'Erreur interne du serveur'
         }), 500
 
-# ==================== API ENDPOINTS ====================
+# API endspoints
 
 @app.route('/api/documents')
 def list_documents():
@@ -375,7 +718,7 @@ def list_documents():
             'error': 'Erreur interne du serveur'
         }), 500
 
-# ==================== FICHIERS STATIQUES ====================
+#  Fichiers statiques et images QR 
 
 @app.route('/qr_images/<filename>')
 def serve_qr_image(filename):

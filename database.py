@@ -32,9 +32,9 @@ class Database:
                 autocommit=True  # Auto-commit pour simplifier
             )
             if self.connection.is_connected():
-                logging.info("✅ Connexion à MySQL réussie")
+                logging.info(" Connexion à MySQL réussie")
         except Error as e:
-            logging.error(f"❌ Erreur de connexion à MySQL: {e}")
+            logging.error(f" Erreur de connexion à MySQL: {e}")
             raise
     
     def get_cursor(self):
@@ -56,7 +56,7 @@ class Database:
                 results.extend(result.fetchall())
             return results
         except Error as e:
-            logging.error(f"❌ Erreur procédure {procedure_name}: {e}")
+            logging.error(f" Erreur procédure {procedure_name}: {e}")
             raise
         finally:
             cursor.close()
@@ -73,7 +73,7 @@ class Database:
             else:
                 return cursor.rowcount
         except Error as e:
-            logging.error(f"❌ Erreur requête SQL: {e}")
+            logging.error(f" Erreur requête SQL: {e}")
             raise
         finally:
             cursor.close()
@@ -82,7 +82,7 @@ class Database:
         """Fermer proprement la connexion MySQL"""
         if self.connection and self.connection.is_connected():
             self.connection.close()
-            logging.info("🔌 Connexion MySQL fermée")
+            logging.info(" Connexion MySQL fermée")
 
 # Instance globale de la base de données
 db = Database()
