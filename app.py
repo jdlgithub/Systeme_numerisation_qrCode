@@ -1,9 +1,11 @@
-from flask import Flask, jsonify, request, render_template, send_from_directory
+from flask import Flask, jsonify, request, render_template, send_from_directory, session, redirect, url_for
 from database import db
 from qr_generator import qr_generator
 import os
 import logging
 from dotenv import load_dotenv
+from functools import wraps
+import hashlib
 
 # Charger les variables d'environnement depuis .env
 load_dotenv()
@@ -31,6 +33,38 @@ DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 # Créer les dossiers nécessaires
 os.makedirs(ARCHIVES_FOLDER, exist_ok=True)
 os.makedirs(QR_IMAGES_FOLDER, exist_ok=True)
+
+# Décorateurs d'authentification
+def login_required(f):
+    """Décorateur pour vérifier que l'utilisateur est connecté"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.headers.get('Accept', '').startswith('application/json'):
+                return jsonify({'success': False, 'error': 'Authentification requise'}), 401
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Décorateur pour vérifier que l'utilisateur est admin"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.headers.get('Accept', '').startswith('application/json'):
+                return jsonify({'success': False, 'error': 'Authentification requise'}), 401
+            return redirect(url_for('login'))
+        
+        if session.get('user_role') != 'admin':
+            if request.headers.get('Accept', '').startswith('application/json'):
+                return jsonify({'success': False, 'error': 'Accès admin requis'}), 403
+            return redirect(url_for('user_dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def hash_password(password):
+    """Hasher un mot de passe avec SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 #  Fontions utilitaires pour la création de documents 
 
@@ -123,11 +157,112 @@ def get_next_sequence(subcategory_id, year):
                         (subcategory_id, year))
         return 1
 
+# Routes d'authentification
+
+@app.route('/login')
+def login():
+    """Page de connexion"""
+    if 'user_id' in session:
+        if session.get('user_role') == 'admin':
+            return redirect(url_for('index'))
+        else:
+            return redirect(url_for('user_dashboard'))
+    return render_template('login.html')
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """API: Authentification utilisateur"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({
+                'success': False,
+                'error': 'Nom d\'utilisateur et mot de passe requis'
+            }), 400
+        
+        # Vérifier les identifiants
+        password_hash = hash_password(password)
+        query = """
+        SELECT id, username, role, is_active
+        FROM users 
+        WHERE username = %s AND password_hash = %s AND is_active = TRUE
+        """
+        
+        result = db.execute_query(query, (username, password_hash))
+        
+        if result:
+            user = result[0]
+            
+            # Créer la session
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['user_role'] = user['role']
+            
+            # Mettre à jour la dernière connexion
+            db.execute_query(
+                "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = %s",
+                (user['id'],)
+            )
+            
+            return jsonify({
+                'success': True,
+                'user': {
+                    'id': user['id'],
+                    'username': user['username'],
+                    'role': user['role']
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Identifiants incorrects'
+            }), 401
+            
+    except Exception as e:
+        logger.error(f"Erreur lors de la connexion: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/logout')
+def api_logout():
+    """API: Déconnexion"""
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.route('/api/user-info')
+@login_required
+def api_user_info():
+    """API: Informations utilisateur connecté"""
+    return jsonify({
+        'success': True,
+        'user': {
+            'id': session['user_id'],
+            'username': session['username'],
+            'role': session['user_role']
+        }
+    })
+
+@app.route('/user-dashboard')
+@login_required
+def user_dashboard():
+    """Tableau de bord utilisateur"""
+    if session.get('user_role') == 'admin':
+        return redirect(url_for('index'))
+    return render_template('user_dashboard.html')
+
 # Routes web 
 
 @app.route('/')
+@login_required
 def index():
-    """Page d'accueil de l'application"""
+    """Page d'accueil de l'application (admin seulement)"""
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('user_dashboard'))
     return render_template('index.html')
 
 @app.route('/qr/<identifier>')
@@ -369,6 +504,7 @@ def download_document(identifier):
         }), 500
 
 @app.route('/api/scan-archives', methods=['POST'])
+@admin_required
 def scan_archives():
     """
     API: Scanner la structure Archives/ et créer tous les QR codes
@@ -432,6 +568,7 @@ def list_categories():
         }), 500
 
 @app.route('/api/categories', methods=['POST'])
+@admin_required
 def create_category():
     """API: Créer une nouvelle catégorie avec QR code"""
     try:
@@ -496,6 +633,7 @@ def create_category():
         }), 500
 
 @app.route('/api/subcategories', methods=['POST'])
+@admin_required
 def create_subcategory():
     """API: Créer une nouvelle sous-catégorie avec QR code"""
     try:
@@ -613,11 +751,13 @@ def list_subcategories(category_id):
         }), 500
 
 @app.route('/admin')
+@admin_required
 def admin_panel():
     """Page d'administration pour gérer les catégories et sous-catégories"""
     return render_template('admin.html')
 
 @app.route('/api/documents', methods=['POST'])
+@admin_required
 def create_document():
     """
     API: Créer un nouveau document avec génération automatique du QR code

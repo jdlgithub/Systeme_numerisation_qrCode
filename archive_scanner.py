@@ -44,10 +44,16 @@ class ArchiveScanner:
             # 3. Scanner et enregistrer tous les fichiers
             files = self._scan_files(subcategories)
             
-            logger.info(f" Scan terminé:")
+            # Compter les nouveaux vs existants
+            new_files = [f for f in files if f and f.get('status') == 'new']
+            existing_files = [f for f in files if f and f.get('status') == 'existing']
+            
+            logger.info(f"=== Scan terminé ===")
             logger.info(f"{len(categories)} catégories")
             logger.info(f"{len(subcategories)} sous-catégories") 
-            logger.info(f"{len(files)} fichiers")
+            logger.info(f"{len(new_files)} nouveaux fichiers ajoutés")
+            logger.info(f"{len(existing_files)} fichiers existants ignorés")
+            logger.info(f"{len(files)} fichiers traités au total")
             
             return True
             
@@ -152,6 +158,21 @@ class ArchiveScanner:
             filename = file_path.name
             relative_path = str(file_path).replace('\\', '/')
             
+            # Vérifier si le document existe déjà (même nom et même chemin)
+            existing_doc = db.execute_query(
+                "SELECT id, document_code FROM documents WHERE filename = %s AND file_path = %s", 
+                (filename, str(relative_path))
+            )
+            
+            if existing_doc:
+                logger.info(f"   Document {filename} existe déjà dans {relative_path} - ignoré")
+                return {
+                    'document_id': existing_doc[0]['id'],
+                    'document_code': existing_doc[0]['document_code'],
+                    'filename': filename,
+                    'status': 'existing'
+                }
+            
             # Générer le code document
             sequence_num = self._get_next_sequence(subcat_info['id'], year)
             document_code = f"{subcat_info['category_name']}-{subcat_info['subcategory_name']}-{year}-{sequence_num:04d}"
@@ -177,10 +198,13 @@ class ArchiveScanner:
             # Créer le QR code
             self._create_document_qr(document_id, document_code)
             
+            logger.info(f"   Nouveau document ajouté: {document_code}")
+            
             return {
                 'document_id': document_id,
                 'document_code': document_code,
-                'filename': filename
+                'filename': filename,
+                'status': 'new'
             }
             
         except Exception as e:
@@ -193,6 +217,21 @@ class ArchiveScanner:
             filename = file_path.name
             relative_path = str(file_path).replace('\\', '/')
             year = 2025  # Année par défaut pour les fichiers racine
+            
+            # Vérifier si le document existe déjà (même nom et même chemin)
+            existing_doc = db.execute_query(
+                "SELECT id, document_code FROM documents WHERE filename = %s AND file_path = %s", 
+                (filename, str(relative_path))
+            )
+            
+            if existing_doc:
+                logger.info(f"   Document racine {filename} existe déjà dans {relative_path} - ignoré")
+                return {
+                    'document_id': existing_doc[0]['id'],
+                    'document_code': existing_doc[0]['document_code'],
+                    'filename': filename,
+                    'status': 'existing'
+                }
             
             # Créer une catégorie "GENERAL" si nécessaire
             general_cat_id = self._get_or_create_category("GENERAL")
@@ -223,10 +262,13 @@ class ArchiveScanner:
             # Créer le QR code
             self._create_document_qr(document_id, document_code)
             
+            logger.info(f"   Nouveau document racine ajouté: {document_code}")
+            
             return {
                 'document_id': document_id,
                 'document_code': document_code,
-                'filename': filename
+                'filename': filename,
+                'status': 'new'
             }
             
         except Exception as e:

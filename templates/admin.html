@@ -9,7 +9,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: white;
             min-height: 100vh;
             color: #333;
         }
@@ -31,6 +31,13 @@
             margin: 0;
             font-size: 2.5em;
             font-weight: 300;
+        }
+        .user-info {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: inline-block;
         }
         .content {
             padding: 30px;
@@ -183,8 +190,81 @@
             border-radius: 10px;
         }
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                margin: 0;
+                border-radius: 10px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .actions-bar {
+                padding: 15px;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn, button {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+                min-height: 48px;
+                font-size: 16px;
+            }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .form-control {
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
             .grid {
                 grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .categories-list, .subcategories-list {
+                padding: 15px;
+            }
+            
+            .item-card {
+                padding: 12px;
+            }
+            
+            .item-actions {
+                text-align: center;
+                margin-top: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .section {
+                padding: 12px;
+            }
+            
+            .content {
+                padding: 10px;
             }
         }
     </style>
@@ -194,6 +274,9 @@
         <div class="header">
             <h1>Administration QR Archives</h1>
             <p>Gestion des catégories et sous-catégories</p>
+            <div class="user-info">
+                <span id="userInfo">Chargement...</span>
+            </div>
         </div>
         
         <div class="content">
@@ -265,8 +348,27 @@
 
         // Charger les données au démarrage
         document.addEventListener('DOMContentLoaded', function() {
+            loadUserInfo();
             loadCategories();
         });
+
+        // Charger les informations utilisateur
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('userInfo').textContent = 
+                        `${result.user.username} (${result.user.role})`;
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Erreur chargement info utilisateur:', error);
+                window.location.href = '/login';
+            }
+        }
 
         function showAlert(message, type = 'success') {
             const alertsContainer = document.getElementById('alerts');
@@ -437,7 +539,13 @@
 
         async function scanArchives() {
             try {
-                showAlert('Scan en cours...', 'success');
+                // Désactiver le bouton pendant le scan
+                const scanButton = document.querySelector('button[onclick="scanArchives()"]');
+                const originalText = scanButton.textContent;
+                scanButton.disabled = true;
+                scanButton.textContent = 'Scan en cours...';
+                
+                showAlert('Scan des archives en cours...', 'success');
                 
                 const response = await fetch('/api/scan-archives', {
                     method: 'POST'
@@ -446,14 +554,20 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('Scan terminé avec succès!');
-                    loadCategories();
+                    showAlert('Scan terminé avec succès! Liste des documents mise à jour.', 'success');
+                    // Recharger toutes les données pour mettre à jour les compteurs de documents
+                    await loadCategories();
                 } else {
-                    showAlert(data.error, 'error');
+                    showAlert(data.error || 'Erreur lors du scan', 'error');
                 }
             } catch (error) {
-                showAlert('Erreur lors du scan', 'error');
+                showAlert('Erreur lors du scan des archives', 'error');
                 console.error('Erreur:', error);
+            } finally {
+                // Réactiver le bouton
+                const scanButton = document.querySelector('button[onclick="scanArchives()"]');
+                scanButton.disabled = false;
+                scanButton.textContent = 'Scanner Archives';
             }
         }
 

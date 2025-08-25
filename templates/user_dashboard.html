@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de bord - QR Archives</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .user-info {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: inline-block;
+        }
+        .content {
+            padding: 30px;
+        }
+        .actions-bar {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 5px;
+            background: #4ECDC4;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #FF6B6B;
+        }
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+        .section {
+            margin-bottom: 40px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 4px solid #4ECDC4;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #4ECDC4;
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
+        }
+        .documents-list {
+            max-height: 500px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .document-item {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .document-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .document-item:last-child {
+            margin-bottom: 0;
+        }
+        .document-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .document-meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .document-actions {
+            text-align: right;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .search-box {
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            width: 70%;
+            display: inline-block;
+        }
+        .search-box button {
+            width: 25%;
+            margin-left: 2%;
+        }
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                margin: 0;
+                border-radius: 10px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .actions-bar {
+                padding: 15px;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn, button {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+                min-height: 48px;
+                font-size: 16px;
+            }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .form-control {
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
+            .search-box input, .search-box button {
+                width: 100%;
+                margin: 5px 0;
+            }
+            
+            .documents-list {
+                padding: 15px;
+            }
+            
+            .document-item {
+                padding: 12px;
+            }
+            
+            .document-actions {
+                text-align: center;
+                margin-top: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .section {
+                padding: 12px;
+            }
+            
+            .content {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Tableau de bord Utilisateur</h1>
+            <p>Consultation des documents QR Archives</p>
+            <div class="user-info">
+                <span id="userInfo">Chargement...</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="actions-bar">
+                <button onclick="loadDocuments()" class="btn">Actualiser</button>
+                <a href="/api/logout" class="btn btn-danger">Déconnexion</a>
+            </div>
+            
+            <!-- Section de recherche QR -->
+            <div class="section">
+                <h2>Rechercher un document</h2>
+                <div class="form-group">
+                    <label for="qrIdentifier">Identifiant QR Code:</label>
+                    <div class="search-box">
+                        <input type="text" id="qrIdentifier" class="form-control" placeholder="ex: RH-CONTRATS-2025-0001">
+                        <button onclick="resolveQR()" class="btn">Rechercher</button>
+                    </div>
+                </div>
+                
+                <div id="resolveResult"></div>
+            </div>
+            
+            <!-- Section de liste des documents -->
+            <div class="section">
+                <h2>Liste des documents</h2>
+                <div class="search-box">
+                    <input type="text" id="searchFilter" class="form-control" placeholder="Filtrer par nom, catégorie ou année...">
+                    <button onclick="filterDocuments()" class="btn">Filtrer</button>
+                </div>
+                <div id="documentsList" class="documents-list">
+                    <p>Chargement des documents...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allDocuments = [];
+        
+        // Charger les informations utilisateur
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('userInfo').textContent = 
+                        `${result.user.username} (${result.user.role})`;
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Erreur chargement info utilisateur:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        // Résoudre un QR code
+        async function resolveQR() {
+            const identifier = document.getElementById('qrIdentifier').value;
+            if (!identifier) {
+                alert('Veuillez entrer un identifiant QR code');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/qr/${identifier}`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const result = await response.json();
+                const resultDiv = document.getElementById('resolveResult');
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    if (result.type === 'document') {
+                        const doc = result.data;
+                        resultDiv.innerHTML = `
+                            <h3>Document trouvé</h3>
+                            <p><strong>Code:</strong> ${doc.document_code}</p>
+                            <p><strong>Fichier:</strong> ${doc.filename}</p>
+                            <p><strong>Catégorie:</strong> ${doc.category_name}</p>
+                            <p><strong>Sous-catégorie:</strong> ${doc.subcategory_name}</p>
+                            <p><strong>Année:</strong> ${doc.year}</p>
+                            <p><strong>Titre:</strong> ${doc.title || 'N/A'}</p>
+                            <p><strong>Description:</strong> ${doc.description || 'N/A'}</p>
+                            <div style="text-align: center; margin-top: 15px;">
+                                <a href="/qr/${identifier}" target="_blank" class="btn">Voir le document</a>
+                            </div>
+                        `;
+                    } else {
+                        const data = result.data;
+                        resultDiv.innerHTML = `
+                            <h3>${result.type === 'category' ? 'Catégorie' : 'Sous-catégorie'} trouvée</h3>
+                            <p><strong>Nom:</strong> ${data.category_name || data.subcategory_name}</p>
+                            <p><strong>Description:</strong> ${data.description || 'N/A'}</p>
+                            <div style="text-align: center; margin-top: 15px;">
+                                <a href="/qr/${identifier}" target="_blank" class="btn">Voir le contenu</a>
+                            </div>
+                        `;
+                    }
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<p>${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('resolveResult').className = 'result error';
+                document.getElementById('resolveResult').innerHTML = `<p>Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Charger la liste des documents
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/api/documents');
+                const result = await response.json();
+                const listDiv = document.getElementById('documentsList');
+                
+                if (result.success) {
+                    allDocuments = result.documents;
+                    displayDocuments(allDocuments);
+                } else {
+                    listDiv.innerHTML = `<p class="error">Erreur: ${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('documentsList').innerHTML = `<p class="error">Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Afficher les documents
+        function displayDocuments(documents) {
+            const listDiv = document.getElementById('documentsList');
+            
+            if (documents.length === 0) {
+                listDiv.innerHTML = '<p>Aucun document trouvé</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = documents.map(doc => `
+                <div class="document-item">
+                    <div class="document-title">${doc.title || doc.filename}</div>
+                    <div class="document-meta">
+                        <strong>${doc.document_code}</strong> • 
+                        ${doc.category_name}/${doc.subcategory_name} • 
+                        ${doc.year}
+                    </div>
+                    <div class="document-actions">
+                        <button onclick="viewDocument('${doc.qr_identifier}')" class="btn">Consulter</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Filtrer les documents
+        function filterDocuments() {
+            const filter = document.getElementById('searchFilter').value.toLowerCase();
+            
+            if (!filter) {
+                displayDocuments(allDocuments);
+                return;
+            }
+            
+            const filtered = allDocuments.filter(doc => 
+                doc.filename.toLowerCase().includes(filter) ||
+                doc.title?.toLowerCase().includes(filter) ||
+                doc.category_name.toLowerCase().includes(filter) ||
+                doc.subcategory_name.toLowerCase().includes(filter) ||
+                doc.year.toString().includes(filter) ||
+                doc.document_code.toLowerCase().includes(filter)
+            );
+            
+            displayDocuments(filtered);
+        }
+        
+        // Voir un document
+        function viewDocument(identifier) {
+            window.open(`/qr/${identifier}`, '_blank');
+        }
+        
+        // Filtrage en temps réel
+        document.getElementById('searchFilter').addEventListener('input', filterDocuments);
+        
+        // Charger les données au démarrage
+        loadUserInfo();
+        loadDocuments();
+    </script>
+</body>
+</html>
