@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - QR Archives</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .user-info {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: inline-block;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 40px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 4px solid #4ECDC4;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #4ECDC4;
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 5px;
+            background: #4ECDC4;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #FF6B6B;
+        }
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        .categories-list, .subcategories-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .item-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .item-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .item-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .item-description {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .item-stats {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .item-actions {
+            text-align: right;
+        }
+        .qr-code {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .actions-bar {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                margin: 0;
+                border-radius: 10px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .actions-bar {
+                padding: 15px;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn, button {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+                min-height: 48px;
+                font-size: 16px;
+            }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .form-control {
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .categories-list, .subcategories-list {
+                padding: 15px;
+            }
+            
+            .item-card {
+                padding: 12px;
+            }
+            
+            .item-actions {
+                text-align: center;
+                margin-top: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .section {
+                padding: 12px;
+            }
+            
+            .content {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Administration QR Archives</h1>
+            <p>Gestion des catégories et sous-catégories</p>
+            <div class="user-info">
+                <span id="userInfo">Chargement...</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="actions-bar">
+                <a href="/" class="btn btn-secondary">Accueil</a>
+                <button onclick="refreshData()" class="btn">Actualiser</button>
+                <button onclick="scanArchives()" class="btn">Scanner Archives</button>
+            </div>
+
+            <div id="alerts"></div>
+            
+            <div class="grid">
+                <!-- Section Catégories -->
+                <div class="section">
+                    <h2>Catégories</h2>
+                    
+                    <form id="categoryForm" onsubmit="createCategory(event)">
+                        <div class="form-group">
+                            <label for="categoryName">Nom de la catégorie</label>
+                            <input type="text" id="categoryName" class="form-control" placeholder="Ex: RH, FACT, CATALG" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="categoryDescription">Description</label>
+                            <input type="text" id="categoryDescription" class="form-control" placeholder="Description optionnelle">
+                        </div>
+                        <button type="submit" class="btn">Créer Catégorie</button>
+                    </form>
+                    
+                    <div class="categories-list">
+                        <h3>Catégories existantes</h3>
+                        <div id="categoriesList" class="loading">Chargement...</div>
+                    </div>
+                </div>
+                
+                <!-- Section Sous-catégories -->
+                <div class="section">
+                    <h2>Sous-catégories</h2>
+                    
+                    <form id="subcategoryForm" onsubmit="createSubcategory(event)">
+                        <div class="form-group">
+                            <label for="parentCategory">Catégorie parente</label>
+                            <select id="parentCategory" class="form-control" required>
+                                <option value="">Sélectionner une catégorie</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="subcategoryName">Nom de la sous-catégorie</label>
+                            <input type="text" id="subcategoryName" class="form-control" placeholder="Ex: 2024, CONTRATS" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="subcategoryDescription">Description</label>
+                            <input type="text" id="subcategoryDescription" class="form-control" placeholder="Description optionnelle">
+                        </div>
+                        <button type="submit" class="btn">Créer Sous-catégorie</button>
+                    </form>
+                    
+                    <div class="subcategories-list">
+                        <h3>Sous-catégories existantes</h3>
+                        <div id="subcategoriesList" class="loading">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let categories = [];
+        let subcategories = [];
+
+        // Charger les données au démarrage
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserInfo();
+            loadCategories();
+        });
+
+        // Charger les informations utilisateur
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('userInfo').textContent = 
+                        `${result.user.username} (${result.user.role})`;
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Erreur chargement info utilisateur:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        function showAlert(message, type = 'success') {
+            const alertsContainer = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alert.style.display = 'block';
+            
+            alertsContainer.innerHTML = '';
+            alertsContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                const data = await response.json();
+                
+                if (data.success) {
+                    categories = data.categories;
+                    renderCategories();
+                    updateCategorySelect();
+                    loadAllSubcategories();
+                } else {
+                    showAlert('Erreur lors du chargement des catégories', 'error');
+                }
+            } catch (error) {
+                showAlert('Erreur de connexion', 'error');
+                console.error('Erreur:', error);
+            }
+        }
+
+        async function loadAllSubcategories() {
+            try {
+                subcategories = [];
+                for (const category of categories) {
+                    const response = await fetch(`/api/subcategories/${category.id}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        subcategories.push(...data.subcategories.map(sc => ({
+                            ...sc,
+                            category_name: category.name
+                        })));
+                    }
+                }
+                renderSubcategories();
+            } catch (error) {
+                console.error('Erreur chargement sous-catégories:', error);
+            }
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('categoriesList');
+            
+            if (categories.length === 0) {
+                container.innerHTML = '<div class="empty-state">Aucune catégorie créée</div>';
+                return;
+            }
+            
+            container.innerHTML = categories.map(cat => `
+                <div class="item-card">
+                    <div class="item-name">${cat.name}</div>
+                    <div class="item-description">${cat.description || 'Aucune description'}</div>
+                    <div class="item-stats">
+                        ${cat.subcategory_count} sous-catégories • ${cat.document_count} documents
+                    </div>
+                    ${cat.qr_identifier ? `<div class="qr-code">QR: ${cat.qr_identifier}</div>` : ''}
+                    <div class="item-actions">
+                        <a href="/qr/${cat.qr_identifier}" class="btn btn-secondary" target="_blank">Voir</a>
+                        <a href="/qr_images/${cat.qr_identifier}.png" class="btn" target="_blank">QR Code</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderSubcategories() {
+            const container = document.getElementById('subcategoriesList');
+            
+            if (subcategories.length === 0) {
+                container.innerHTML = '<div class="empty-state">Aucune sous-catégorie créée</div>';
+                return;
+            }
+            
+            container.innerHTML = subcategories.map(subcat => `
+                <div class="item-card">
+                    <div class="item-name">${subcat.category_name}/${subcat.name}</div>
+                    <div class="item-description">${subcat.description || 'Aucune description'}</div>
+                    <div class="item-stats">${subcat.document_count} documents</div>
+                    ${subcat.qr_identifier ? `<div class="qr-code">QR: ${subcat.qr_identifier}</div>` : ''}
+                    <div class="item-actions">
+                        <a href="/qr/${subcat.qr_identifier}" class="btn btn-secondary" target="_blank">Voir</a>
+                        <a href="/qr_images/${subcat.qr_identifier}.png" class="btn" target="_blank">QR Code</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateCategorySelect() {
+            const select = document.getElementById('parentCategory');
+            select.innerHTML = '<option value="">Sélectionner une catégorie</option>' +
+                categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        }
+
+        async function createCategory(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('categoryName').value.trim();
+            const description = document.getElementById('categoryDescription').value.trim();
+            
+            try {
+                const response = await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, description })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Catégorie "${data.category.name}" créée avec succès!`);
+                    document.getElementById('categoryForm').reset();
+                    loadCategories();
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Erreur lors de la création', 'error');
+                console.error('Erreur:', error);
+            }
+        }
+
+        async function createSubcategory(event) {
+            event.preventDefault();
+            
+            const category_id = document.getElementById('parentCategory').value;
+            const name = document.getElementById('subcategoryName').value.trim();
+            const description = document.getElementById('subcategoryDescription').value.trim();
+            
+            try {
+                const response = await fetch('/api/subcategories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ category_id, name, description })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Sous-catégorie "${data.subcategory.category_name}/${data.subcategory.name}" créée avec succès!`);
+                    document.getElementById('subcategoryForm').reset();
+                    loadCategories();
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Erreur lors de la création', 'error');
+                console.error('Erreur:', error);
+            }
+        }
+
+        async function scanArchives() {
+            try {
+                // Désactiver le bouton pendant le scan
+                const scanButton = document.querySelector('button[onclick="scanArchives()"]');
+                const originalText = scanButton.textContent;
+                scanButton.disabled = true;
+                scanButton.textContent = 'Scan en cours...';
+                
+                showAlert('Scan des archives en cours...', 'success');
+                
+                const response = await fetch('/api/scan-archives', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Scan terminé avec succès! Liste des documents mise à jour.', 'success');
+                    // Recharger toutes les données pour mettre à jour les compteurs de documents
+                    await loadCategories();
+                } else {
+                    showAlert(data.error || 'Erreur lors du scan', 'error');
+                }
+            } catch (error) {
+                showAlert('Erreur lors du scan des archives', 'error');
+                console.error('Erreur:', error);
+            } finally {
+                // Réactiver le bouton
+                const scanButton = document.querySelector('button[onclick="scanArchives()"]');
+                scanButton.disabled = false;
+                scanButton.textContent = 'Scanner Archives';
+            }
+        }
+
+        function refreshData() {
+            loadCategories();
+        }
+    </script>
+</body>
+</html>

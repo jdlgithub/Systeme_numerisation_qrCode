@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sous-catégorie - {{ subcategory.subcategory_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .subcategory-header {
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .subcategory-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        .subcategory-meta {
+            color: #666;
+            font-size: 14px;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 0 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .info-box {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="subcategory-header">
+            <div class="subcategory-title"> {{ subcategory.subcategory_name }}</div>
+            <div class="subcategory-meta">{{ subcategory.category_name }}</div>
+        </div>
+
+        <div class="info-box">
+            <h3> Informations sur la sous-catégorie</h3>
+            <p><strong>Catégorie:</strong> {{ subcategory.category_name }}</p>
+            <p><strong>Sous-catégorie:</strong> {{ subcategory.subcategory_name }}</p>
+            {% if subcategory.description %}
+            <p><strong>Description:</strong> {{ subcategory.description }}</p>
+            {% endif %}
+            <p><strong>Identifiant QR:</strong> <code>{{ subcategory.qr_identifier }}</code></p>
+        </div>
+
+        <div class="info-box">
+            <h3> Instructions</h3>
+            <p>Cette sous-catégorie contient des documents organisés par année. Pour accéder à un document spécifique, utilisez son QR code individuel.</p>
+            <p>Les documents de cette sous-catégorie se trouvent dans le dossier Archives.</p>
+        </div>
+
+        <div class="actions">
+            <a href="/" class="btn btn-secondary">
+                 Retour à l'accueil
+            </a>
+        </div>
+    </div>
+</body>
+</html>

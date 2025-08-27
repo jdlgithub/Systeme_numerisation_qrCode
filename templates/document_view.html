@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document - {{ document.document_code }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .content {
+            padding: 30px;
+        }
+        .document-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4ECDC4;
+        }
+        .document-code {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #4ECDC4;
+            margin-bottom: 10px;
+        }
+        .document-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .document-meta {
+            color: #666;
+            font-size: 1em;
+        }
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .section h3 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 15px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .detail-label {
+            font-weight: 600;
+            width: 180px;
+            color: #555;
+            flex-shrink: 0;
+        }
+        .detail-value {
+            flex: 1;
+            color: #333;
+        }
+        .detail-value code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 0 10px 10px 0;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn-primary {
+            background: #4ECDC4;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #45b7aa;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .file-info {
+            background: white;
+            color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 3px solid #e0e0e0;
+        }
+        .file-info h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .file-info p {
+            margin: 10px 0;
+            color: #333;
+        }
+        .file-info strong {
+            color: #4ECDC4;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .document-code {
+                font-size: 20px;
+            }
+            
+            .document-title {
+                font-size: 18px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .detail-label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+            
+            .btn {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+                min-height: 48px;
+                font-size: 16px;
+                text-align: center;
+            }
+            
+            .actions {
+                text-align: center;
+            }
+            
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .document-code {
+                font-size: 18px;
+            }
+            
+            .document-title {
+                font-size: 16px;
+            }
+            
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ document.document_code }}</h1>
+            <p>{{ document.title or document.filename }}</p>
+        </div>
+        
+        <div class="content">
+            <div class="document-info">
+                <div class="document-code">{{ document.document_code }}</div>
+                <div class="document-title">{{ document.title or document.filename }}</div>
+                <div class="document-meta">{{ document.category_name }} / {{ document.subcategory_name }} - {{ document.year }}</div>
+            </div>
+
+            <div class="section">
+                <h3>Détails du document</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Nom du fichier:</div>
+                    <div class="detail-value">{{ document.filename }}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Catégorie:</div>
+                    <div class="detail-value">{{ document.category_name }}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Sous-catégorie:</div>
+                    <div class="detail-value">{{ document.subcategory_name }}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Année:</div>
+                    <div class="detail-value">{{ document.year }}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Chemin:</div>
+                    <div class="detail-value"><code>{{ document.file_path }}</code></div>
+                </div>
+                {% if document.description %}
+                <div class="detail-row">
+                    <div class="detail-label">Description:</div>
+                    <div class="detail-value">{{ document.description }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="file-info">
+                <h3>Informations du fichier</h3>
+                <p><strong>Emplacement:</strong> {{ document.file_path }}</p>
+                <p><strong>Accessible via QR:</strong> {{ document.document_code }}</p>
+            </div>
+
+
+            <div class="actions">
+                <a href="/download/{{ document.document_code }}" class="btn btn-success">
+                    Télécharger le PDF
+                </a>
+                <a href="/archives/{{ document.file_path.replace('Archives/', '') }}" 
+                   target="_blank" class="btn btn-primary">
+                    Ouvrir dans un nouvel onglet
+                </a>
+                <a href="/" class="btn btn-secondary">
+                    Retour à l'accueil
+                </a>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

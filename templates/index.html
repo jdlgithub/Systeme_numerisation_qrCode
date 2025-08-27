@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système de Numérisation QR Code</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 40px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 4px solid #4ECDC4;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        .form-control, input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        .form-control:focus, input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4ECDC4;
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
+        }
+        .btn, button {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 5px;
+            background: #4ECDC4;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn:hover, button:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #FF6B6B;
+        }
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .qr-image {
+            max-width: 200px;
+            margin: 10px 0;
+        }
+        .documents-list {
+            max-height: 400px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .document-item {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .document-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .document-item:last-child {
+            margin-bottom: 0;
+        }
+        .actions-bar {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                margin: 0;
+                border-radius: 10px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .actions-bar {
+                padding: 15px;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .actions-bar span {
+                margin-bottom: 10px;
+                margin-right: 0;
+            }
+            
+            .btn, button {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+                min-height: 48px;
+                font-size: 16px;
+            }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .form-control {
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
+            .documents-list {
+                padding: 15px;
+            }
+            
+            .document-item {
+                padding: 12px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .section {
+                padding: 12px;
+            }
+            
+            .content {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Système de Numérisation QR Code</h1>
+            <p>Gestion et création de documents avec QR codes</p>
+        </div>
+        
+        <div class="content">
+            <div class="actions-bar">
+                <span id="userInfo" style="margin-right: 20px; font-weight: bold;"></span>
+                <a href="/admin" class="btn btn-secondary">Administration</a>
+                <button onclick="loadCategories()" class="btn">Actualiser Catégories</button>
+                <a href="/api/logout" class="btn btn-danger">Déconnexion</a>
+            </div>
+        
+        <!-- Section de création de document -->
+        <div class="section">
+            <h2> Créer un nouveau document</h2>
+            <form id="createDocumentForm">
+                <div class="form-group">
+                    <label for="category">Catégorie:</label>
+                    <select id="category" name="category" required>
+                        <option value="">Sélectionner une catégorie</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="subcategory">Sous-catégorie:</label>
+                    <select id="subcategory" name="subcategory" required>
+                        <option value="">Sélectionner une sous-catégorie</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="filename">Nom du fichier:</label>
+                    <input type="text" id="filename" name="filename" placeholder="ex: contrat_dupont.pdf" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="filepath">Chemin du fichier:</label>
+                    <input type="text" id="filepath" name="filepath" placeholder="ex: Archives/RH/CONTRATS/2025/contrat_dupont.pdf" readonly>
+                    <small style="color: #666;">Le chemin sera généré automatiquement</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="year">Année:</label>
+                    <input type="number" id="year" name="year" value="2025" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="title">Titre:</label>
+                    <input type="text" id="title" name="title" placeholder="ex: Contrat de travail Dupont">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" rows="3" placeholder="ex: Contrat CDI pour M. Dupont"></textarea>
+                </div>
+                
+                <button type="submit">Créer le document</button>
+            </form>
+            
+            <div id="createResult"></div>
+        </div>
+        
+        <!-- Section de résolution QR -->
+        <div class="section">
+            <h2> Résoudre un QR Code</h2>
+            <div class="form-group">
+                <label for="qrIdentifier">Identifiant QR Code:</label>
+                <input type="text" id="qrIdentifier" placeholder="ex: RH-CONTRATS-2025-0001">
+                <button onclick="resolveQR()">Résoudre</button>
+            </div>
+            
+            <div id="resolveResult"></div>
+        </div>
+        
+        <!-- Section de liste des documents -->
+        <div class="section">
+            <h2> Liste des documents</h2>
+            <button onclick="loadDocuments()">Actualiser la liste</button>
+            <div id="documentsList" class="documents-list"></div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        // Mettre à jour le chemin automatiquement
+        function updateFilePath() {
+            const category = document.getElementById('category').value;
+            const subcategory = document.getElementById('subcategory').value;
+            const year = document.getElementById('year').value;
+            const filename = document.getElementById('filename').value;
+            
+            if (category && subcategory && year && filename) {
+                const path = `Archives/${category}/${subcategory}/${year}/${filename}`;
+                document.getElementById('filepath').value = path;
+            }
+        }
+        
+        // Charger les catégories depuis l'API
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                const result = await response.json();
+                const categorySelect = document.getElementById('category');
+                
+                if (result.success) {
+                    categorySelect.innerHTML = '<option value="">Sélectionner une catégorie</option>';
+                    result.categories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat.name;
+                        option.textContent = `${cat.name} - ${cat.description}`;
+                        categorySelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement catégories:', error);
+            }
+        }
+
+        // Charger les sous-catégories d'une catégorie
+        async function loadSubcategories(categoryId) {
+            try {
+                const response = await fetch(`/api/subcategories/${categoryId}`);
+                const result = await response.json();
+                const subcategorySelect = document.getElementById('subcategory');
+                
+                if (result.success) {
+                    subcategorySelect.innerHTML = '<option value="">Sélectionner une sous-catégorie</option>';
+                    result.subcategories.forEach(subcat => {
+                        const option = document.createElement('option');
+                        option.value = subcat.name;
+                        option.textContent = `${subcat.name} - ${subcat.description}`;
+                        subcategorySelect.appendChild(option);
+                    });
+                } else {
+                    subcategorySelect.innerHTML = '<option value="">Aucune sous-catégorie</option>';
+                }
+            } catch (error) {
+                console.error('Erreur chargement sous-catégories:', error);
+            }
+        }
+
+        // Gérer le changement de catégorie
+        document.getElementById('category').addEventListener('change', async function() {
+            const categoryName = this.value;
+            if (categoryName) {
+                // Trouver l'ID de la catégorie
+                try {
+                    const response = await fetch('/api/categories');
+                    const result = await response.json();
+                    if (result.success) {
+                        const category = result.categories.find(cat => cat.name === categoryName);
+                        if (category) {
+                            await loadSubcategories(category.id);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                }
+            } else {
+                document.getElementById('subcategory').innerHTML = '<option value="">Sélectionner une sous-catégorie</option>';
+            }
+            updateFilePath();
+        });
+
+        // Ajouter les événements pour mettre à jour le chemin
+        document.getElementById('subcategory').addEventListener('change', updateFilePath);
+        document.getElementById('year').addEventListener('input', updateFilePath);
+        document.getElementById('filename').addEventListener('input', updateFilePath);
+
+        // Créer un document
+        document.getElementById('createDocumentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                category_name: formData.get('category'),
+                subcategory_name: formData.get('subcategory'),
+                filename: formData.get('filename'),
+                year: parseInt(formData.get('year')),
+                title: formData.get('title'),
+                description: formData.get('description')
+            };
+            
+            try {
+                const response = await fetch('/api/documents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('createResult');
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3> Document créé avec succès!</h3>
+                        <p><strong>Code document:</strong> ${result.document_code}</p>
+                        <p><strong>QR Identifier:</strong> ${result.qr_identifier}</p>
+                        <p><strong>QR Payload:</strong> ${result.qr_payload}</p>
+                        <img src="/qr_images/${result.qr_identifier}.png" alt="QR Code" class="qr-image">
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<p> Erreur: ${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('createResult').className = 'result error';
+                document.getElementById('createResult').innerHTML = `<p> Erreur: ${error.message}</p>`;
+            }
+        });
+        
+        // Résoudre un QR code
+        async function resolveQR() {
+            const identifier = document.getElementById('qrIdentifier').value;
+            if (!identifier) {
+                alert('Veuillez entrer un identifiant QR code');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/qr/${identifier}`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const result = await response.json();
+                const resultDiv = document.getElementById('resolveResult');
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    if (result.type === 'document') {
+                        const doc = result.data;
+                        resultDiv.innerHTML = `
+                            <h3> Document trouvé</h3>
+                            <p><strong>Code:</strong> ${doc.document_code}</p>
+                            <p><strong>Fichier:</strong> ${doc.filename}</p>
+                            <p><strong>Catégorie:</strong> ${doc.category_name}</p>
+                            <p><strong>Sous-catégorie:</strong> ${doc.subcategory_name}</p>
+                            <p><strong>Année:</strong> ${doc.year}</p>
+                            <p><strong>Titre:</strong> ${doc.title || 'N/A'}</p>
+                            <p><strong>Description:</strong> ${doc.description || 'N/A'}</p>
+                        `;
+                    } else {
+                        const sub = result.data;
+                        resultDiv.innerHTML = `
+                            <h3> Sous-catégorie trouvée</h3>
+                            <p><strong>Identifiant:</strong> ${sub.qr_identifier}</p>
+                            <p><strong>Catégorie:</strong> ${sub.category_name}</p>
+                            <p><strong>Sous-catégorie:</strong> ${sub.subcategory_name}</p>
+                            <p><strong>Description:</strong> ${sub.description || 'N/A'}</p>
+                        `;
+                    }
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<p> ${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('resolveResult').className = 'result error';
+                document.getElementById('resolveResult').innerHTML = `<p> Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Charger la liste des documents
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/api/documents');
+                const result = await response.json();
+                const listDiv = document.getElementById('documentsList');
+                
+                if (result.success) {
+                    if (result.documents.length === 0) {
+                        listDiv.innerHTML = '<p>Aucun document trouvé</p>';
+                    } else {
+                        listDiv.innerHTML = result.documents.map(doc => `
+                            <div class="document-item">
+                                <strong>${doc.document_code}</strong><br>
+                                ${doc.title || doc.filename} (${doc.year})<br>
+                                <small>${doc.category_name} / ${doc.subcategory_name}</small>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    listDiv.innerHTML = `<p class="error">Erreur: ${result.error}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('documentsList').innerHTML = `<p class="error">Erreur: ${error.message}</p>`;
+            }
+        }
+        
+        // Charger les informations utilisateur
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('userInfo').textContent = 
+                        `Connecté: ${result.user.full_name} (${result.user.role})`;
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Erreur chargement info utilisateur:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        // Charger les données au démarrage
+        loadUserInfo();
+        loadCategories();
+        loadDocuments();
+    </script>
+</body>
+</html>
