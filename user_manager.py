@@ -1,594 +1,310 @@
+#!/usr/bin/env python3
 """
-Gestionnaire d'Utilisateurs - QR Archives System """
+Gestionnaire d'utilisateurs pour l'application QR Archives
+Permet de créer, modifier et supprimer des utilisateurs
+"""
 
 import mysql.connector
+from mysql.connector import Error
 import hashlib
+import logging
 import os
-import sys
-import json
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import getpass
 
 # Charger les variables d'environnement
 load_dotenv()
 
+# Configuration du logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 class UserManager:
     def __init__(self):
+        """Initialiser le gestionnaire d'utilisateurs"""
         self.connection = None
-        self.cursor = None
-        self.connect_db()
+        self.connect()
     
-    def connect_db(self):
-        """Connexion à la base de données"""
+    def connect(self):
+        """Établir la connexion à la base de données"""
         try:
             self.connection = mysql.connector.connect(
-                host=os.getenv('DB_HOST', 'localhost'),
-                user=os.getenv('DB_USER', 'root'),
-                password=os.getenv('DB_PASSWORD', ''),
-                database=os.getenv('DB_NAME', 'qr_archives'),
-                charset='utf8mb4',
-                collation='utf8mb4_unicode_ci'
+                host=os.environ.get('DB_HOST', 'localhost'),
+                user=os.environ.get('DB_USER', 'root'),
+                password=os.environ.get('DB_PASSWORD', ''),
+                database=os.environ.get('DB_NAME', 'qr_archives'),
+                port=int(os.environ.get('DB_PORT', 3306))
             )
-            self.cursor = self.connection.cursor(buffered=True)
-            print("Connexion à la base de données réussie")
-        except mysql.connector.Error as e:
-            print(f"Erreur de connexion à la base de données : {e}")
-            sys.exit(1)
-    
-    def close_db(self):
-        """Fermeture de la connexion"""
-        if self.cursor:
-            self.cursor.close()
-        if self.connection:
-            self.connection.close()
+            if self.connection.is_connected():
+                logger.info(" Connexion à la base de données réussie")
+        except Error as e:
+            logger.error(f" Erreur de connexion: {e}")
+            raise
     
     def hash_password(self, password):
-        """Hash du mot de passe en SHA256"""
+        """Hasher un mot de passe avec SHA256"""
         return hashlib.sha256(password.encode()).hexdigest()
     
-    def user_exists(self, username):
-        """Vérifier si un utilisateur existe"""
-        query = "SELECT id FROM users WHERE username = %s"
-        self.cursor.execute(query, (username,))
-        return self.cursor.fetchone() is not None
-    
-    def add_user(self, username, password, role='user', is_active=True):
-        """Ajouter un nouvel utilisateur"""
+    def create_user(self, username, password, full_name=None, email=None, role='user'):
+        """Créer un nouvel utilisateur"""
         try:
-            if self.user_exists(username):
-                print(f"L'utilisateur '{username}' existe déjà")
+            cursor = self.connection.cursor()
+            
+            # Vérifier si l'utilisateur existe déjà
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if cursor.fetchone():
+                logger.error(f" L'utilisateur '{username}' existe déjà")
                 return False
             
-            if role not in ['admin', 'user']:
-                print("Le rôle doit être 'admin' ou 'user'")
-                return False
-            
+            # Hasher le mot de passe
             password_hash = self.hash_password(password)
             
+            # Insérer l'utilisateur
             query = """
-            INSERT INTO users (username, password_hash, role, created_at, is_active) 
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO users (username, password_hash, full_name, email, role, is_active)
+            VALUES (%s, %s, %s, %s, %s, TRUE)
             """
-            
-            self.cursor.execute(query, (
-                username, 
-                password_hash, 
-                role, 
-                datetime.now(), 
-                1 if is_active else 0
-            ))
-            self.connection.commit()
-            
-            print(f"Utilisateur '{username}' ajouté avec succès (rôle: {role})")
-            return True
-            
-        except mysql.connector.Error as e:
-            print(f"Erreur lors de l'ajout : {e}")
-            return False
-    
-    def update_password(self, username, new_password):
-        """Modifier le mot de passe d'un utilisateur"""
-        try:
-            if not self.user_exists(username):
-                print(f"L'utilisateur '{username}' n'existe pas")
-                return False
-            
-            password_hash = self.hash_password(new_password)
-            
-            query = "UPDATE users SET password_hash = %s WHERE username = %s"
-            self.cursor.execute(query, (password_hash, username))
-            self.connection.commit()
-            
-            print(f"Mot de passe mis à jour pour '{username}'")
-            return True
-            
-        except mysql.connector.Error as e:
-            print(f"Erreur lors de la mise à jour : {e}")
-            return False
-    
-    def update_role(self, username, new_role):
-        """Modifier le rôle d'un utilisateur"""
-        try:
-            if not self.user_exists(username):
-                print(f"L'utilisateur '{username}' n'existe pas")
-                return False
-            
-            if new_role not in ['admin', 'user']:
-                print("Le rôle doit être 'admin' ou 'user'")
-                return False
-            
-            query = "UPDATE users SET role = %s WHERE username = %s"
-            self.cursor.execute(query, (new_role, username))
-            self.connection.commit()
-            
-            print(f"Rôle mis à jour pour '{username}' : {new_role}")
-            return True
-            
-        except mysql.connector.Error as e:
-            print(f"Erreur lors de la mise à jour : {e}")
-            return False
-    
-    def toggle_user_status(self, username, activate=True):
-        """Activer/Désactiver un utilisateur"""
-        try:
-            if not self.user_exists(username):
-                print(f"L'utilisateur '{username}' n'existe pas")
-                return False
-            
-            status = 1 if activate else 0
-            action = "activé" if activate else "désactivé"
-            
-            query = "UPDATE users SET is_active = %s WHERE username = %s"
-            self.cursor.execute(query, (status, username))
-            self.connection.commit()
-            
-            print(f"Utilisateur '{username}' {action}")
-            return True
-            
-        except mysql.connector.Error as e:
-            print(f"Erreur lors de la mise à jour : {e}")
-            return False
-    
-    def delete_user(self, username, soft_delete=True):
-        """Supprimer un utilisateur (soft ou hard delete)"""
-        try:
-            if not self.user_exists(username):
-                print(f"L'utilisateur '{username}' n'existe pas")
-                return False
-            
-            if soft_delete:
-                # Soft delete : désactiver et renommer
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                new_username = f"{username}_DELETED_{timestamp}"
-                
-                query = """
-                UPDATE users 
-                SET is_active = 0, username = %s 
-                WHERE username = %s
-                """
-                self.cursor.execute(query, (new_username, username))
-                print(f"Utilisateur '{username}' désactivé (soft delete)")
-            else:
-                # Hard delete : suppression définitive
-                query = "DELETE FROM users WHERE username = %s"
-                self.cursor.execute(query, (username,))
-                print(f"Utilisateur '{username}' supprimé définitivement")
+            cursor.execute(query, (username, password_hash, full_name, email, role))
             
             self.connection.commit()
+            logger.info(f" Utilisateur '{username}' créé avec succès")
             return True
             
-        except mysql.connector.Error as e:
-            print(f"Erreur lors de la suppression : {e}")
+        except Error as e:
+            logger.error(f" Erreur lors de la création de l'utilisateur: {e}")
             return False
+        finally:
+            cursor.close()
     
-    def get_user_info(self, username):
-        """Obtenir les informations d'un utilisateur"""
+    def update_user(self, username, **kwargs):
+        """Mettre à jour un utilisateur existant"""
         try:
-            query = """
-            SELECT id, username, role, created_at, last_login, is_active 
-            FROM users 
-            WHERE username = %s
-            """
-            self.cursor.execute(query, (username,))
-            user = self.cursor.fetchone()
+            cursor = self.connection.cursor()
             
-            if not user:
-                print(f"Utilisateur '{username}' introuvable")
-                return None
+            # Vérifier si l'utilisateur existe
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if not cursor.fetchone():
+                logger.error(f" L'utilisateur '{username}' n'existe pas")
+                return False
             
-            return {
-                'id': user[0],
-                'username': user[1],
-                'role': user[2],
-                'created_at': user[3],
-                'last_login': user[4],
-                'is_active': bool(user[5])
-            }
+            # Construire la requête de mise à jour
+            updates = []
+            values = []
             
-        except mysql.connector.Error as e:
-            print(f"Erreur lors de la recherche : {e}")
-            return None
+            if 'password' in kwargs:
+                updates.append("password_hash = %s")
+                values.append(self.hash_password(kwargs['password']))
+            
+            if 'full_name' in kwargs:
+                updates.append("full_name = %s")
+                values.append(kwargs['full_name'])
+            
+            if 'email' in kwargs:
+                updates.append("email = %s")
+                values.append(kwargs['email'])
+            
+            if 'role' in kwargs:
+                updates.append("role = %s")
+                values.append(kwargs['role'])
+            
+            if 'is_active' in kwargs:
+                updates.append("is_active = %s")
+                values.append(kwargs['is_active'])
+            
+            if not updates:
+                logger.warning(" Aucune modification à apporter")
+                return False
+            
+            # Exécuter la mise à jour
+            query = f"UPDATE users SET {', '.join(updates)} WHERE username = %s"
+            values.append(username)
+            cursor.execute(query, values)
+            
+            self.connection.commit()
+            logger.info(f" Utilisateur '{username}' mis à jour avec succès")
+            return True
+            
+        except Error as e:
+            logger.error(f" Erreur lors de la mise à jour: {e}")
+            return False
+        finally:
+            cursor.close()
     
-    def list_users(self, active_only=False, role_filter=None):
+    def delete_user(self, username):
+        """Supprimer un utilisateur"""
+        try:
+            cursor = self.connection.cursor()
+            
+            # Vérifier si l'utilisateur existe
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if not cursor.fetchone():
+                logger.error(f" L'utilisateur '{username}' n'existe pas")
+                return False
+            
+            # Supprimer l'utilisateur
+            cursor.execute("DELETE FROM users WHERE username = %s", (username,))
+            
+            self.connection.commit()
+            logger.info(f"Utilisateur '{username}' supprimé avec succès")
+            return True
+            
+        except Error as e:
+            logger.error(f" Erreur lors de la suppression: {e}")
+            return False
+        finally:
+            cursor.close()
+    
+    def list_users(self):
         """Lister tous les utilisateurs"""
         try:
+            cursor = self.connection.cursor(dictionary=True)
+            
             query = """
-            SELECT id, username, role, created_at, last_login, is_active 
+            SELECT id, username, full_name, email, role, is_active, created_at, last_login
             FROM users
+            ORDER BY username
             """
-            conditions = []
-            params = []
+            cursor.execute(query)
             
-            if active_only:
-                conditions.append("is_active = 1")
+            users = cursor.fetchall()
             
-            if role_filter in ['admin', 'user']:
-                conditions.append("role = %s")
-                params.append(role_filter)
-            
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
-            
-            query += " ORDER BY created_at DESC"
-            
-            self.cursor.execute(query, params)
-            users = self.cursor.fetchall()
-            
-            if not users:
-                print("Aucun utilisateur trouvé")
-                return []
-            
-            # Affichage simple en colonnes
-            print("\n" + "="*100)
-            print("                              LISTE DES UTILISATEURS")
-            print("="*100)
-            
-            # En-têtes
-            print(f"{'ID':<4} {'Username':<20} {'Rôle':<8} {'Créé le':<17} {'Dernière connexion':<17} {'Actif':<6}")
-            print("-" * 100)
-            
+            logger.info(f" {len(users)} utilisateurs trouvés:")
             for user in users:
-                created = user[3].strftime("%Y-%m-%d %H:%M") if user[3] else "N/A"
-                last_login = user[4].strftime("%Y-%m-%d %H:%M") if user[4] else "Jamais"
-                status = "Oui" if user[5] else "Non"
-                
-                print(f"{user[0]:<4} {user[1]:<20} {user[2]:<8} {created:<17} {last_login:<17} {status:<6}")
-            
-            print("-" * 100)
-            print(f"Total : {len(users)} utilisateur(s)")
+                status = "Actif" if user['is_active'] else "Inactif"
+                last_login = user['last_login'].strftime('%Y-%m-%d %H:%M:%S') if user['last_login'] else "Jamais"
+                logger.info(f"  - {user['username']} ({user['role']}) - {status} - Dernière connexion: {last_login}")
             
             return users
             
-        except mysql.connector.Error as e:
-            print(f"Erreur lors de la liste : {e}")
+        except Error as e:
+            logger.error(f" Erreur lors de la récupération des utilisateurs: {e}")
             return []
+        finally:
+            cursor.close()
     
-    def get_statistics(self):
-        """Obtenir les statistiques des utilisateurs"""
+    def get_user(self, username):
+        """Récupérer les informations d'un utilisateur"""
         try:
-            stats = {}
-            
-            # Total utilisateurs
-            self.cursor.execute("SELECT COUNT(*) FROM users")
-            stats['total'] = self.cursor.fetchone()[0]
-            
-            # Utilisateurs actifs
-            self.cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = 1")
-            stats['active'] = self.cursor.fetchone()[0]
-            
-            # Utilisateurs inactifs
-            stats['inactive'] = stats['total'] - stats['active']
-            
-            # Par rôle
-            self.cursor.execute("SELECT role, COUNT(*) FROM users WHERE is_active = 1 GROUP BY role")
-            role_stats = dict(self.cursor.fetchall())
-            stats['admins'] = role_stats.get('admin', 0)
-            stats['users'] = role_stats.get('user', 0)
-            
-            # Connexions récentes (7 derniers jours)
-            week_ago = datetime.now() - timedelta(days=7)
-            self.cursor.execute(
-                "SELECT COUNT(*) FROM users WHERE last_login >= %s", 
-                (week_ago,)
-            )
-            stats['recent_logins'] = self.cursor.fetchone()[0]
-            
-            return stats
-            
-        except mysql.connector.Error as e:
-            print(f"Erreur lors du calcul des statistiques : {e}")
-            return {}
-    
-    def display_statistics(self):
-        """Afficher les statistiques"""
-        stats = self.get_statistics()
-        if not stats:
-            return
-        
-        print("\n" + "="*60)
-        print("                    STATISTIQUES UTILISATEURS")
-        print("="*60)
-        print(f"Total utilisateurs      : {stats['total']}")
-        print(f"Utilisateurs actifs     : {stats['active']}")
-        print(f"Utilisateurs inactifs   : {stats['inactive']}")
-        print(f"Administrateurs         : {stats['admins']}")
-        print(f"Utilisateurs standard   : {stats['users']}")
-        print(f"Connexions récentes     : {stats['recent_logins']} (7 derniers jours)")
-        print("="*60)
-    
-    def backup_users(self, filename=None):
-        """Sauvegarder les utilisateurs en JSON"""
-        try:
-            if not filename:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"users_backup_{timestamp}.json"
+            cursor = self.connection.cursor(dictionary=True)
             
             query = """
-            SELECT id, username, password_hash, role, created_at, last_login, is_active 
-            FROM users 
-            ORDER BY id
+            SELECT id, username, full_name, email, role, is_active, created_at, last_login
+            FROM users
+            WHERE username = %s
             """
-            self.cursor.execute(query)
-            users = self.cursor.fetchall()
+            cursor.execute(query, (username,))
             
-            backup_data = []
-            for user in users:
-                backup_data.append({
-                    'id': user[0],
-                    'username': user[1],
-                    'password_hash': user[2],
-                    'role': user[3],
-                    'created_at': user[4].isoformat() if user[4] else None,
-                    'last_login': user[5].isoformat() if user[5] else None,
-                    'is_active': bool(user[6])
-                })
+            user = cursor.fetchone()
             
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(backup_data, f, indent=2, ensure_ascii=False)
+            if user:
+                logger.info(f" Utilisateur '{username}' trouvé:")
+                logger.info(f"  - Nom complet: {user['full_name']}")
+                logger.info(f"  - Email: {user['email']}")
+                logger.info(f"  - Rôle: {user['role']}")
+                logger.info(f"  - Statut: {'Actif' if user['is_active'] else 'Inactif'}")
+                logger.info(f"  - Créé le: {user['created_at'].strftime('%Y-%m-%d %H:%M:%S')}")
+                if user['last_login']:
+                    logger.info(f"  - Dernière connexion: {user['last_login'].strftime('%Y-%m-%d %H:%M:%S')}")
+                else:
+                    logger.info(f"  - Dernière connexion: Jamais")
+            else:
+                logger.error(f" L'utilisateur '{username}' n'existe pas")
             
-            print(f"Sauvegarde créée : {filename} ({len(users)} utilisateurs)")
-            return filename
+            return user
             
-        except Exception as e:
-            print(f"Erreur lors de la sauvegarde : {e}")
+        except Error as e:
+            logger.error(f" Erreur lors de la récupération de l'utilisateur: {e}")
             return None
+        finally:
+            cursor.close()
     
-    def restore_users(self, filename):
-        """Restaurer les utilisateurs depuis un fichier JSON"""
-        try:
-            if not os.path.exists(filename):
-                print(f"Fichier de sauvegarde introuvable : {filename}")
-                return False
-            
-            with open(filename, 'r', encoding='utf-8') as f:
-                backup_data = json.load(f)
-            
-            restored = 0
-            skipped = 0
-            
-            for user_data in backup_data:
-                if self.user_exists(user_data['username']):
-                    print(f"Utilisateur '{user_data['username']}' existe déjà - ignoré")
-                    skipped += 1
-                    continue
-                
-                query = """
-                INSERT INTO users (username, password_hash, role, created_at, last_login, is_active) 
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """
-                
-                created_at = datetime.fromisoformat(user_data['created_at']) if user_data['created_at'] else datetime.now()
-                last_login = datetime.fromisoformat(user_data['last_login']) if user_data['last_login'] else None
-                
-                self.cursor.execute(query, (
-                    user_data['username'],
-                    user_data['password_hash'],
-                    user_data['role'],
-                    created_at,
-                    last_login,
-                    1 if user_data['is_active'] else 0
-                ))
-                restored += 1
-            
-            self.connection.commit()
-            print(f"Restauration terminée : {restored} utilisateurs restaurés, {skipped} ignorés")
-            return True
-            
-        except Exception as e:
-            print(f"Erreur lors de la restauration : {e}")
-            return False
-
-def clear_screen():
-    """Effacer l'écran"""
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-def display_menu():
-    """Afficher le menu principal"""
-    print("\n" + "="*80)
-    print("                        GESTIONNAIRE D'UTILISATEURS")
-    print("                             QR Archives System")
-    print("="*80)
-    print("1. Ajouter un utilisateur")
-    print("2. Modifier le mot de passe")
-    print("3. Modifier le rôle")
-    print("4. Activer un utilisateur")
-    print("5. Désactiver un utilisateur")
-    print("6. Supprimer un utilisateur (soft delete)")
-    print("7. Supprimer définitivement")
-    print("8. Rechercher un utilisateur")
-    print("9. Lister tous les utilisateurs")
-    print("10. Afficher les statistiques")
-    print("11. Sauvegarder les utilisateurs")
-    print("12. Restaurer les utilisateurs")
-    print("13. Rafraîchir l'écran")
-    print("0. Quitter")
-    print("="*80)
-
-def get_secure_password(prompt="Mot de passe : "):
-    """Saisie sécurisée du mot de passe"""
-    return getpass.getpass(prompt)
+    def close(self):
+        """Fermer la connexion"""
+        if self.connection and self.connection.is_connected():
+            self.connection.close()
+            logger.info(" Connexion fermée")
 
 def main():
-    """Fonction principale"""
-    user_manager = UserManager()
+    """Interface en ligne de commande"""
+    manager = UserManager()
     
-    try:
-        while True:
-            display_menu()
-            choice = input("\n Votre choix : ").strip()
+    while True:
+        print("\n=== Gestionnaire d'utilisateurs ===")
+        print("1. Créer un utilisateur")
+        print("2. Modifier un utilisateur")
+        print("3. Supprimer un utilisateur")
+        print("4. Lister tous les utilisateurs")
+        print("5. Voir un utilisateur")
+        print("6. Quitter")
+        
+        choice = input("\nVotre choix (1-6): ").strip()
+        
+        if choice == '1':
+            username = input("Nom d'utilisateur: ").strip()
+            password = input("Mot de passe: ").strip()
+            full_name = input("Nom complet (optionnel): ").strip() or None
+            email = input("Email (optionnel): ").strip() or None
+            role = input("Rôle (admin/user, défaut: user): ").strip() or 'user'
             
-            if choice == '0':
-                print("\n Au revoir !")
-                break
-            
-            elif choice == '1':
-                print("\n AJOUT D'UTILISATEUR")
-                print("-" * 30)
-                username = input("Nom d'utilisateur : ").strip()
-                if not username:
-                    print("Le nom d'utilisateur ne peut pas être vide")
-                    continue
-                
-                password = get_secure_password()
-                if not password:
-                    print("Le mot de passe ne peut pas être vide")
-                    continue
-                
-                role = input("Rôle (admin/user) [user] : ").strip().lower() or 'user'
-                user_manager.add_user(username, password, role)
-            
-            elif choice == '2':
-                print("\n MODIFICATION MOT DE PASSE")
-                print("-" * 35)
-                username = input("Nom d'utilisateur : ").strip()
-                if not username:
-                    print("Le nom d'utilisateur ne peut pas être vide")
-                    continue
-                
-                new_password = get_secure_password("Nouveau mot de passe : ")
-                if not new_password:
-                    print("Le mot de passe ne peut pas être vide")
-                    continue
-                
-                user_manager.update_password(username, new_password)
-            
-            elif choice == '3':
-                print("\n MODIFICATION RÔLE")
-                print("-" * 25)
-                username = input("Nom d'utilisateur : ").strip()
-                if not username:
-                    print("Le nom d'utilisateur ne peut pas être vide")
-                    continue
-                
-                new_role = input("Nouveau rôle (admin/user) : ").strip().lower()
-                if new_role not in ['admin', 'user']:
-                    print("Le rôle doit être 'admin' ou 'user'")
-                    continue
-                
-                user_manager.update_role(username, new_role)
-            
-            elif choice == '4':
-                print("\n ACTIVATION UTILISATEUR")
-                print("-" * 30)
-                username = input("Nom d'utilisateur : ").strip()
-                if username:
-                    user_manager.toggle_user_status(username, activate=True)
-            
-            elif choice == '5':
-                print("\n DÉSACTIVATION UTILISATEUR")
-                print("-" * 35)
-                username = input("Nom d'utilisateur : ").strip()
-                if username:
-                    user_manager.toggle_user_status(username, activate=False)
-            
-            elif choice == '6':
-                print("\n SUPPRESSION UTILISATEUR (SOFT DELETE)")
-                print("-" * 45)
-                username = input("Nom d'utilisateur : ").strip()
-                if username:
-                    confirm = input(f"⚠️ Confirmer la désactivation de '{username}' ? (oui/non) : ").strip().lower()
-                    if confirm in ['oui', 'o', 'yes', 'y']:
-                        user_manager.delete_user(username, soft_delete=True)
-            
-            elif choice == '7':
-                print("\n SUPPRESSION DÉFINITIVE")
-                print("-" * 30)
-                username = input("Nom d'utilisateur : ").strip()
-                if username:
-                    print("ATTENTION : Cette action est IRRÉVERSIBLE !")
-                    confirm1 = input(f"Confirmer la suppression définitive de '{username}' ? (oui/non) : ").strip().lower()
-                    if confirm1 in ['oui', 'o', 'yes', 'y']:
-                        confirm2 = input("Êtes-vous ABSOLUMENT sûr ? (SUPPRIMER/annuler) : ").strip()
-                        if confirm2 == 'SUPPRIMER':
-                            user_manager.delete_user(username, soft_delete=False)
-                        else:
-                            print("Suppression annulée")
-            
-            elif choice == '8':
-                print("\n RECHERCHE UTILISATEUR")
-                print("-" * 30)
-                username = input("Nom d'utilisateur : ").strip()
-                if username:
-                    user_info = user_manager.get_user_info(username)
-                    if user_info:
-                        print("\n INFORMATIONS UTILISATEUR")
-                        print("-" * 35)
-                        print(f"ID           : {user_info['id']}")
-                        print(f"Username     : {user_info['username']}")
-                        print(f"Rôle         : {user_info['role']}")
-                        print(f"Créé le      : {user_info['created_at']}")
-                        print(f"Dernière co. : {user_info['last_login'] or 'Jamais'}")
-                        print(f"Actif        : {'Oui' if user_info['is_active'] else 'Non'}")
-            
-            elif choice == '9':
-                print("\n LISTE DES UTILISATEURS")
-                print("-" * 30)
-                filter_choice = input("Filtre (1=Tous, 2=Actifs, 3=Admins, 4=Users) [1] : ").strip() or '1'
-                
-                if filter_choice == '1':
-                    user_manager.list_users()
-                elif filter_choice == '2':
-                    user_manager.list_users(active_only=True)
-                elif filter_choice == '3':
-                    user_manager.list_users(active_only=True, role_filter='admin')
-                elif filter_choice == '4':
-                    user_manager.list_users(active_only=True, role_filter='user')
-                else:
-                    print("Choix invalide")
-            
-            elif choice == '10':
-                user_manager.display_statistics()
-            
-            elif choice == '11':
-                print("\n SAUVEGARDE UTILISATEURS")
-                print("-" * 35)
-                filename = input("Nom du fichier [auto] : ").strip() or None
-                user_manager.backup_users(filename)
-            
-            elif choice == '12':
-                print("\n RESTAURATION UTILISATEURS")
-                print("-" * 40)
-                filename = input("Nom du fichier de sauvegarde : ").strip()
-                if filename:
-                    user_manager.restore_users(filename)
-            
-            elif choice == '13':
-                clear_screen()
-                continue
-            
+            if manager.create_user(username, password, full_name, email, role):
+                print("Utilisateur créé avec succès")
             else:
-                print("Choix invalide")
+                print("Erreur lors de la création")
+        
+        elif choice == '2':
+            username = input("Nom d'utilisateur à modifier: ").strip()
+            print("Laissez vide pour ne pas modifier")
             
-            input("\n Appuyez sur Entrée pour continuer...")
+            password = input("Nouveau mot de passe: ").strip() or None
+            full_name = input("Nouveau nom complet: ").strip() or None
+            email = input("Nouvel email: ").strip() or None
+            role = input("Nouveau rôle (admin/user): ").strip() or None
+            
+            updates = {}
+            if password:
+                updates['password'] = password
+            if full_name:
+                updates['full_name'] = full_name
+            if email:
+                updates['email'] = email
+            if role:
+                updates['role'] = role
+            
+            if manager.update_user(username, **updates):
+                print("Utilisateur mis à jour avec succès")
+            else:
+                print("Erreur lors de la mise à jour")
+        
+        elif choice == '3':
+            username = input("Nom d'utilisateur à supprimer: ").strip()
+            confirm = input(f"Êtes-vous sûr de vouloir supprimer '{username}' ? (oui/non): ").strip().lower()
+            
+            if confirm == 'oui':
+                if manager.delete_user(username):
+                    print("Utilisateur supprimé avec succès")
+                else:
+                    print("Erreur lors de la suppression")
+            else:
+                print("Suppression annulée")
+        
+        elif choice == '4':
+            users = manager.list_users()
+            if not users:
+                print("Aucun utilisateur trouvé")
+        
+        elif choice == '5':
+            username = input("Nom d'utilisateur à voir: ").strip()
+            user = manager.get_user(username)
+            if not user:
+                print("Utilisateur non trouvé")
+        
+        elif choice == '6':
+            print("Au revoir!")
+            break
+        
+        else:
+            print("Choix invalide. Veuillez choisir 1-6.")
     
-    except KeyboardInterrupt:
-        print("\n\n Interruption détectée")
-    except Exception as e:
-        print(f"\n Erreur inattendue : {e}")
-    finally:
-        user_manager.close_db()
-        print("Connexion fermée")
+    manager.close()
 
 if __name__ == "__main__":
     main()

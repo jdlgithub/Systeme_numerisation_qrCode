@@ -1,5 +1,4 @@
-
-""" Génère les QR codes hiérarchiques
+"""
 Scanne tous les dossiers, sous-dossiers et fichiers pour créer les QR codes correspondants
 """
 
@@ -7,15 +6,11 @@ import os
 import logging
 from pathlib import Path
 from database import db
-from qr_generator import qr_generator
+from qr_generator import qr_generator 
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement
 load_dotenv()
-
-# Configuration
-ARCHIVES_FOLDER = os.environ.get('ARCHIVES_FOLDER', 'Archives')
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -23,16 +18,17 @@ logger = logging.getLogger(__name__)
 
 class ArchiveScanner:
     def __init__(self):
-        self.archives_path = Path(ARCHIVES_FOLDER)
-        self.base_url = BASE_URL
+        self.archives_path = Path(os.environ.get('ARCHIVES_FOLDER', 'Archives'))
+        self.base_url = os.environ.get('BASE_URL', 'http://localhost:5000')
         
     def scan_and_register_all(self):
         """Scanner complètement la structure Archives/ et enregistrer tout en base"""
         logger.info("=== Début du scan de la structure Archives/ ===")
         
         if not self.archives_path.exists():
-            logger.error(f"Le dossier {ARCHIVES_FOLDER} n'existe pas")
-            return False
+            logger.warning(f"Le dossier {os.environ.get('ARCHIVES_FOLDER', 'Archives')} n'existe pas - création...")
+            self.archives_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Dossier {os.environ.get('ARCHIVES_FOLDER', 'Archives')} créé")
             
         try:
             # 1. Scanner et enregistrer les catégories (dossiers racine)
@@ -66,21 +62,24 @@ class ArchiveScanner:
         logger.info("Scan des catégories...")
         categories = {}
         
-        for item in self.archives_path.iterdir():
-            if item.is_dir():
-                category_name = item.name
-                logger.info(f"Traitement catégorie: {category_name}")
-                
-                # Créer ou récupérer la catégorie en base
-                category_id = self._get_or_create_category(category_name)
-                categories[category_name] = {
-                    'id': category_id,
-                    'path': item,
-                    'name': category_name
-                }
-                
-                # Créer le QR code pour la catégorie
-                self._create_category_qr(category_id, category_name)
+        try:
+            for item in self.archives_path.iterdir():
+                if item.is_dir():
+                    category_name = item.name
+                    logger.info(f"Traitement catégorie: {category_name}")
+                    
+                    # Créer ou récupérer la catégorie en base
+                    category_id = self._get_or_create_category(category_name)
+                    categories[category_name] = {
+                        'id': category_id,
+                        'path': item,
+                        'name': category_name
+                    }
+                    
+                    # Créer le QR code pour la catégorie
+                    self._create_category_qr(category_id, category_name)
+        except Exception as e:
+            logger.error(f"Erreur lors du scan des catégories: {e}")
         
         return categories
     
@@ -89,29 +88,32 @@ class ArchiveScanner:
         logger.info("Scan des sous-catégories...")
         subcategories = {}
         
-        for cat_name, cat_info in categories.items():
-            cat_path = cat_info['path']
-            category_id = cat_info['id']
-            
-            for item in cat_path.iterdir():
-                if item.is_dir():
-                    subcat_name = item.name
-                    logger.info(f"   Traitement sous-catégorie: {cat_name}/{subcat_name}")
-                    
-                    # Créer ou récupérer la sous-catégorie
-                    subcat_id = self._get_or_create_subcategory(category_id, subcat_name)
-                    
-                    subcat_key = f"{cat_name}/{subcat_name}"
-                    subcategories[subcat_key] = {
-                        'id': subcat_id,
-                        'path': item,
-                        'category_name': cat_name,
-                        'subcategory_name': subcat_name,
-                        'category_id': category_id
-                    }
-                    
-                    # Créer le QR code pour la sous-catégorie
-                    self._create_subcategory_qr(subcat_id, cat_name, subcat_name)
+        try:
+            for cat_name, cat_info in categories.items():
+                cat_path = cat_info['path']
+                category_id = cat_info['id']
+                
+                for item in cat_path.iterdir():
+                    if item.is_dir():
+                        subcat_name = item.name
+                        logger.info(f"   Traitement sous-catégorie: {cat_name}/{subcat_name}")
+                        
+                        # Créer ou récupérer la sous-catégorie
+                        subcat_id = self._get_or_create_subcategory(category_id, subcat_name)
+                        
+                        subcat_key = f"{cat_name}/{subcat_name}"
+                        subcategories[subcat_key] = {
+                            'id': subcat_id,
+                            'path': item,
+                            'category_name': cat_name,
+                            'subcategory_name': subcat_name,
+                            'category_id': category_id
+                        }
+                        
+                        # Créer le QR code pour la sous-catégorie
+                        self._create_subcategory_qr(subcat_id, cat_name, subcat_name)
+        except Exception as e:
+            logger.error(f"Erreur lors du scan des sous-catégories: {e}")
         
         return subcategories
     
@@ -120,18 +122,21 @@ class ArchiveScanner:
         logger.info("Scan des fichiers...")
         files = []
         
-        # Scanner les fichiers dans les sous-catégories
-        for subcat_key, subcat_info in subcategories.items():
-            subcat_path = subcat_info['path']
-            files.extend(self._scan_files_in_directory(subcat_path, subcat_info))
-        
-        # Scanner les fichiers directement dans les catégories
-        for item in self.archives_path.iterdir():
-            if item.is_file() and item.suffix.lower() == '.pdf':
-                logger.info(f"   Fichier racine: {item.name}")
-                file_info = self._register_root_file(item)
-                if file_info:
-                    files.append(file_info)
+        try:
+            # Scanner les fichiers dans les sous-catégories
+            for subcat_key, subcat_info in subcategories.items():
+                subcat_path = subcat_info['path']
+                files.extend(self._scan_files_in_directory(subcat_path, subcat_info))
+            
+            # Scanner les fichiers directement dans les catégories
+            for item in self.archives_path.iterdir():
+                if item.is_file() and item.suffix.lower() == '.pdf':
+                    logger.info(f"   Fichier racine: {item.name}")
+                    file_info = self._register_root_file(item)
+                    if file_info:
+                        files.append(file_info)
+        except Exception as e:
+            logger.error(f"Erreur lors du scan des fichiers: {e}")
         
         return files
     
@@ -139,16 +144,19 @@ class ArchiveScanner:
         """Scanner récursivement les fichiers dans un répertoire"""
         files = []
         
-        for item in directory_path.rglob('*.pdf'):
-            if item.is_file():
-                logger.info(f"   Fichier: {item.relative_to(self.archives_path)}")
-                
-                # Extraire l'année du chemin si possible
-                year = self._extract_year_from_path(item)
-                
-                file_info = self._register_file(item, subcat_info, year)
-                if file_info:
-                    files.append(file_info)
+        try:
+            for item in directory_path.rglob('*.pdf'):
+                if item.is_file():
+                    logger.info(f"   Fichier: {item.relative_to(self.archives_path)}")
+                    
+                    # Extraire l'année du chemin si possible
+                    year = self._extract_year_from_path(item)
+                    
+                    file_info = self._register_file(item, subcat_info, year)
+                    if file_info:
+                        files.append(file_info)
+        except Exception as e:
+            logger.error(f"Erreur lors du scan du répertoire {directory_path}: {e}")
         
         return files
     
@@ -159,7 +167,7 @@ class ArchiveScanner:
             relative_path = str(file_path).replace('\\', '/')
             
             # Vérifier si le document existe déjà (même nom et même chemin)
-            existing_doc = db.execute_query(
+            existing_doc = db.execute_query_safe(
                 "SELECT id, document_code FROM documents WHERE filename = %s AND file_path = %s", 
                 (filename, str(relative_path))
             )
@@ -219,7 +227,7 @@ class ArchiveScanner:
             year = 2025  # Année par défaut pour les fichiers racine
             
             # Vérifier si le document existe déjà (même nom et même chemin)
-            existing_doc = db.execute_query(
+            existing_doc = db.execute_query_safe(
                 "SELECT id, document_code FROM documents WHERE filename = %s AND file_path = %s", 
                 (filename, str(relative_path))
             )
@@ -284,7 +292,7 @@ class ArchiveScanner:
             folder_path = f"Archives/{category_name}"
             
             # Vérifier si le QR existe déjà
-            existing = db.execute_query("SELECT id FROM qrcodes WHERE qr_identifier = %s", (qr_identifier,))
+            existing = db.execute_query_safe("SELECT id FROM qrcodes WHERE qr_identifier = %s", (qr_identifier,))
             if existing:
                 logger.info(f"   QR catégorie {category_name} existe déjà")
                 return
@@ -312,7 +320,7 @@ class ArchiveScanner:
             folder_path = f"Archives/{category_name}/{subcategory_name}"
             
             # Vérifier si le QR existe déjà
-            existing = db.execute_query("SELECT id FROM qrcodes WHERE qr_identifier = %s", (qr_identifier,))
+            existing = db.execute_query_safe("SELECT id FROM qrcodes WHERE qr_identifier = %s", (qr_identifier,))
             if existing:
                 logger.info(f"   QR sous-catégorie {category_name}/{subcategory_name} existe déjà")
                 return
@@ -339,7 +347,7 @@ class ArchiveScanner:
             qr_image_path = f"qr_images/{qr_identifier}.png"
             
             # Vérifier si le QR existe déjà
-            existing = db.execute_query("SELECT id FROM qrcodes WHERE qr_identifier = %s", (qr_identifier,))
+            existing = db.execute_query_safe("SELECT id FROM qrcodes WHERE qr_identifier = %s", (qr_identifier,))
             if existing:
                 logger.info(f"   QR document {document_code} existe déjà")
                 return
@@ -360,49 +368,65 @@ class ArchiveScanner:
     
     def _get_or_create_category(self, name):
         """Récupérer ou créer une catégorie"""
-        result = db.execute_query("SELECT id FROM categories WHERE name = %s", (name,))
-        if result:
-            return result[0]['id']
-        
-        db.execute_query("INSERT INTO categories (name, description) VALUES (%s, %s)", (name, f"Catégorie {name}"))
-        return db.execute_query("SELECT LAST_INSERT_ID() as id")[0]['id']
+        try:
+            result = db.execute_query_safe("SELECT id FROM categories WHERE name = %s", (name,))
+            if result:
+                return result[0]['id']
+            
+            db.execute_query("INSERT INTO categories (name, description) VALUES (%s, %s)", (name, f"Catégorie {name}"))
+            return db.execute_query("SELECT LAST_INSERT_ID() as id")[0]['id']
+        except Exception as e:
+            logger.error(f"Erreur lors de la création/récupération de la catégorie {name}: {e}")
+            raise
     
     def _get_or_create_subcategory(self, category_id, name):
         """Récupérer ou créer une sous-catégorie"""
-        result = db.execute_query("SELECT id FROM subcategories WHERE category_id = %s AND name = %s", (category_id, name))
-        if result:
-            return result[0]['id']
-        
-        db.execute_query("INSERT INTO subcategories (category_id, name, description) VALUES (%s, %s, %s)", 
-                        (category_id, name, f"Sous-catégorie {name}"))
-        return db.execute_query("SELECT LAST_INSERT_ID() as id")[0]['id']
+        try:
+            result = db.execute_query_safe("SELECT id FROM subcategories WHERE category_id = %s AND name = %s", (category_id, name))
+            if result:
+                return result[0]['id']
+            
+            db.execute_query("INSERT INTO subcategories (category_id, name, description) VALUES (%s, %s, %s)", 
+                            (category_id, name, f"Sous-catégorie {name}"))
+            return db.execute_query("SELECT LAST_INSERT_ID() as id")[0]['id']
+        except Exception as e:
+            logger.error(f"Erreur lors de la création/récupération de la sous-catégorie {name}: {e}")
+            raise
     
     def _get_next_sequence(self, subcategory_id, year):
         """Obtenir le prochain numéro de séquence"""
-        result = db.execute_query("SELECT current_sequence FROM sequences WHERE subcategory_id = %s AND year = %s", 
-                                 (subcategory_id, year))
-        
-        if result:
-            new_sequence = result[0]['current_sequence'] + 1
-            db.execute_query("UPDATE sequences SET current_sequence = %s WHERE subcategory_id = %s AND year = %s", 
-                           (new_sequence, subcategory_id, year))
-            return new_sequence
-        else:
-            db.execute_query("INSERT INTO sequences (subcategory_id, year, current_sequence) VALUES (%s, %s, 1)", 
-                           (subcategory_id, year))
-            return 1
+        try:
+            result = db.execute_query_safe("SELECT current_sequence FROM sequences WHERE subcategory_id = %s AND year = %s", 
+                                         (subcategory_id, year))
+            
+            if result:
+                new_sequence = result[0]['current_sequence'] + 1
+                db.execute_query("UPDATE sequences SET current_sequence = %s WHERE subcategory_id = %s AND year = %s", 
+                               (new_sequence, subcategory_id, year))
+                return new_sequence
+            else:
+                db.execute_query("INSERT INTO sequences (subcategory_id, year, current_sequence) VALUES (%s, %s, 1)", 
+                               (subcategory_id, year))
+                return 1
+        except Exception as e:
+            logger.error(f"Erreur lors de la gestion de la séquence pour subcategory_id={subcategory_id}, year={year}: {e}")
+            raise
     
     def _extract_year_from_path(self, file_path):
         """Extraire l'année du chemin du fichier"""
-        path_parts = file_path.parts
-        
-        # Chercher une année dans le chemin (2020-2030)
-        for part in path_parts:
-            if part.isdigit() and 2020 <= int(part) <= 2030:
-                return int(part)
-        
-        # Année par défaut
-        return 2025
+        try:
+            path_parts = file_path.parts
+            
+            # Chercher une année dans le chemin (2020-2030)
+            for part in path_parts:
+                if part.isdigit() and 2020 <= int(part) <= 2030:
+                    return int(part)
+            
+            # Année par défaut
+            return 2025
+        except Exception as e:
+            logger.warning(f"Erreur lors de l'extraction de l'année du chemin {file_path}: {e}")
+            return 2025
 
 def main():
     """Fonction principale pour scanner et enregistrer toute la structure"""

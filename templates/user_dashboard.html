@@ -171,84 +171,7 @@
             width: 25%;
             margin-left: 2%;
         }
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            
-            .container {
-                margin: 0;
-                border-radius: 10px;
-            }
-            
-            .header {
-                padding: 20px 15px;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .content {
-                padding: 15px;
-            }
-            
-            .actions-bar {
-                padding: 15px;
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .btn, button {
-                display: block;
-                width: 100%;
-                margin: 5px 0;
-                min-height: 48px;
-                font-size: 16px;
-            }
-            
-            .section {
-                padding: 15px;
-                margin-bottom: 20px;
-            }
-            
-            .form-control {
-                font-size: 16px;
-                min-height: 44px;
-            }
-            
-            .search-box input, .search-box button {
-                width: 100%;
-                margin: 5px 0;
-            }
-            
-            .documents-list {
-                padding: 15px;
-            }
-            
-            .document-item {
-                padding: 12px;
-            }
-            
-            .document-actions {
-                text-align: center;
-                margin-top: 10px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
-            
-            .section {
-                padding: 12px;
-            }
-            
-            .content {
-                padding: 10px;
-            }
-        }
+
     </style>
 </head>
 <body>
@@ -305,8 +228,11 @@
                 const result = await response.json();
                 
                 if (result.success) {
+                    const user = result.user;
+                    // Afficher le nom complet s'il existe, sinon le nom d'utilisateur
+                    const displayName = user.full_name || user.username;
                     document.getElementById('userInfo').textContent = 
-                        `${result.user.username} (${result.user.role})`;
+                        `Connecté: ${displayName} (${user.role})`;
                 } else {
                     window.location.href = '/login';
                 }

@@ -166,79 +166,7 @@
             border: 1px solid #f5c6cb;
             color: #721c24;
         }
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            
-            .container {
-                margin: 0;
-                border-radius: 10px;
-            }
-            
-            .header {
-                padding: 20px 15px;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .content {
-                padding: 15px;
-            }
-            
-            .actions-bar {
-                padding: 15px;
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .actions-bar span {
-                margin-bottom: 10px;
-                margin-right: 0;
-            }
-            
-            .btn, button {
-                display: block;
-                width: 100%;
-                margin: 5px 0;
-                min-height: 48px;
-                font-size: 16px;
-            }
-            
-            .section {
-                padding: 15px;
-                margin-bottom: 20px;
-            }
-            
-            .form-control {
-                font-size: 16px;
-                min-height: 44px;
-            }
-            
-            .documents-list {
-                padding: 15px;
-            }
-            
-            .document-item {
-                padding: 12px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
-            
-            .section {
-                padding: 12px;
-            }
-            
-            .content {
-                padding: 10px;
-            }
-        }
+
     </style>
 </head>
 <body>
@@ -543,8 +471,11 @@
                 const result = await response.json();
                 
                 if (result.success) {
+                    const user = result.user;
+                    // Afficher le nom complet s'il existe, sinon le nom d'utilisateur
+                    const displayName = user.full_name || user.username;
                     document.getElementById('userInfo').textContent = 
-                        `Connecté: ${result.user.full_name} (${result.user.role})`;
+                        `Connecté: ${displayName} (${user.role})`;
                 } else {
                     window.location.href = '/login';
                 }
